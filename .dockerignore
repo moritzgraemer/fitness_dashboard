@@ -1,0 +1,17 @@
+# Nicht ins Image: Secrets, Git, Caches, alte Frontends, Rohdaten-Cache
+config.json
+.git
+.gitignore
+.claude
+__pycache__
+*.pyc
+.DS_Store
+archiviert
+frontend
+fable-dashboard
+*.command
+*.log
+datenbanken/streams_raw
+datenbanken/*.bak
+datenbanken/*.log
+logik-erklärung.txt

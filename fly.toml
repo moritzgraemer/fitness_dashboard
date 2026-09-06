@@ -1,0 +1,43 @@
+# Fly.io-Konfiguration für das Fitness-Dashboard
+# App-Name vor dem ersten Deploy anpassen (muss weltweit eindeutig sein):
+#   fly apps create <name>   und hier eintragen.
+app = "DEIN-APP-NAME"   # vor dem ersten Deploy anpassen: fly apps create <name>
+primary_region = "cdg"          # Paris – alternativ "fra" (Frankfurt)
+
+[build]
+
+[env]
+  V2_HOST = "0.0.0.0"
+  V2_PORT = "8080"
+  V2_DEBUG = "0"
+  V2_NO_BROWSER = "1"
+  TZ = "Europe/Berlin"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"    # Maschine schläft bei Inaktivität → kaum Kosten
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 50
+    hard_limit = 100
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/healthz"
+
+# Persistente Daten (alle CSVs, Stream-Cache, Garmin-Token-Store).
+# Einmalig anlegen:  fly volumes create fitness_data --size 1 --region cdg
+[mounts]
+  source = "fitness_data"
+  destination = "/app/datenbanken"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"                # pandas + 80 MB CSV-Daten; 512 MB ist knapp

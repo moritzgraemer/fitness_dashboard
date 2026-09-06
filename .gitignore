@@ -1,0 +1,30 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  Dieses Repository ist öffentlich. Nichts hier drin darf persönlich sein.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── Zugangsdaten – NIEMALS committen ────────────────────────────────────────
+config.json
+credentials.json
+token.json
+*.pem
+.env
+.env.*
+backend/GarminConnectConfig.json
+backend/google_credentials.json
+backend/google_token.json
+
+# ── Persönliche Daten: Aktivitäten, Herzfrequenz, Schlaf, HRV, GPS, Verletzungen
+#    Das Verzeichnis selbst bleibt als Mountpunkt erhalten (.gitkeep).
+datenbanken/*
+!datenbanken/.gitkeep
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── System / Werkzeuge ──────────────────────────────────────────────────────
+.DS_Store
+.claude/
+*.log

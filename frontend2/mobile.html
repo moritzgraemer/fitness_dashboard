@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Training">
+  <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#EEF0E8" media="(prefers-color-scheme: light)">
+  <title>Training · Mobil</title>
+  <link rel="icon" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* ── Theme-Tokens (identisch zur Desktop-v2) ─────────────────────── */
+    :root {
+      --bg: #141414; --surface: #1B1B1B; --surface2: #232323; --surface3: #2B2B2B;
+      --border: #F2EFE7; --hairline: #2B2B2B;
+      --accent: #4E7FD1; --green: #7FA85C; --yellow: #F2B807; --red: #E2543C; --orange: #fb923c;
+      --text: #F2EFE7; --muted: #9C9C90; --on-block: #F2EFE7; --on-yellow: #141414;
+    }
+    /* Hellmodus wie im Desktop über data-theme (Sonnenstand + Umschalter) */
+    [data-theme="light"] {
+      --bg: #EEF0E8; --surface: #F6F7F1; --surface2: #EAEBE1; --surface3: #E0E1D5;
+      --border: #141414; --hairline: #D5D7CA;
+      --accent: #1E4FA0; --green: #5B8C3E; --yellow: #F2B807; --red: #C8402A; --orange: #c2620f;
+      --text: #141414; --muted: #5B5F55; --on-block: #F6F7F1; --on-yellow: #141414;
+    }
+    html { color-scheme: dark; }
+    html[data-theme="light"] { color-scheme: light; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Formelzeichen wie im Satz: L mit tiefgestelltem Index, nie in Versalien */
+    sub { font-size: .66em; vertical-align: -.24em; line-height: 0; letter-spacing: 0; text-transform: none; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Space Grotesk', -apple-system, system-ui, sans-serif; font-size: 14px;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: calc(76px + env(safe-area-inset-bottom));
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap { max-width: 560px; margin: 0 auto; padding: 0 14px; }
+    .view { display: none; flex-direction: column; gap: 12px; }
+    .view.active { display: flex; }
+
+    /* ── Kopf ─────────────────────────────────────────────────────────── */
+    .head { padding: 14px 0 0; border-bottom: 3px solid var(--border); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+    .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text); margin-bottom: 2px; }
+    .title { font-family: 'Archivo Black', sans-serif; font-size: 30px; line-height: 1.05; letter-spacing: -.01em; }
+    .badge { background: var(--yellow); color: var(--on-yellow); border: 2px solid var(--border); padding: 8px 12px; font-family: 'Archivo Black', sans-serif; font-size: 18px; white-space: nowrap; }
+    .head-right { text-align: right; }
+    .head-right .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .head-right .big { font-family: 'Archivo Black', sans-serif; font-size: 24px; line-height: 1.1; }
+    .subrow { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); }
+    .btn { font: inherit; font-weight: 700; font-size: 11px; padding: 6px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .btn:disabled { opacity: .5; }
+
+    /* ── Vier Blöcke ──────────────────────────────────────────────────── */
+    /* Metrik-Kästen exakt wie die Trainingsmetriken auf dem Desktop:
+       heller Grund, 3 px Farbbalken oben, Label muted, Zahl in der Metrikfarbe. */
+    .blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .blk { position: relative; overflow: hidden; border: 1px solid var(--border); background: var(--surface);
+           padding: 14px 14px 13px; min-height: 104px; display: flex; flex-direction: column; gap: 5px; }
+    .blk::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--mc, var(--accent)); }
+    .blk .k { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+    .blk .v { font-size: 30px; font-weight: 900; line-height: 1; color: var(--mc, var(--accent)); text-shadow: 0 0 24px var(--mc, var(--accent)); }
+    .blk .v small { font-size: 16px; font-weight: 700; margin-left: 3px; opacity: .75; }
+    .blk .s { font-size: 10.5px; color: var(--muted); line-height: 1.4; margin-top: auto; }
+    .blk .s b { font-weight: 700; }
+    .blk.c-ctl { --mc: var(--accent); } .blk.c-atl { --mc: var(--yellow); }
+    .blk.c-tsb { --mc: var(--red); }    .blk.c-mech { --mc: var(--orange); }
+
+    /* ── Heute-Leiste ─────────────────────────────────────────────────── */
+    .strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 2px solid var(--border); background: var(--surface); }
+    .strip > div { padding: 8px 6px; text-align: center; border-right: 1px solid var(--hairline); }
+    .strip > div:last-child { border-right: 0; }
+    .strip b { display: block; font-size: 18px; font-weight: 700; }
+    .strip span { display: block; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+    .strip em { display: block; font-style: normal; font-size: 10px; font-weight: 600; min-height: 13px; }
+
+    /* ── Sektionen mit Chart ──────────────────────────────────────────── */
+    .sec { border: 2px solid var(--border); background: var(--surface); }
+    .sec-h { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 2px solid var(--border); }
+    .sec-h h3 { font-family: 'Archivo Black', sans-serif; font-size: 15px; }
+    .tag { font-size: 12px; font-weight: 700; padding: 4px 8px; border: 2px solid var(--border); background: var(--yellow); color: var(--on-yellow); white-space: nowrap; }
+    .tag.red { background: var(--red); color: var(--on-block); } .tag.green { background: var(--green); color: var(--on-block); }
+    .tag.muted { background: var(--surface2); color: var(--text); }
+    .sec-b { padding: 10px 8px 6px; }
+    .chart-area { position: relative; height: 190px; }
+    .chart-area.small { height: 150px; }
+    /* Breite Reihen (16 Makro-Wochen) bekommen eine Mindestbreite und scrollen
+       waagerecht im eigenen Container – dieselbe Grafik, nur schmaler gerahmt. */
+    .scroll-x { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+    .scroll-x > .chart-area { min-width: 560px; }
+    .scroll-hint { font-size: 10px; color: var(--muted); padding: 0 12px 6px; }
+    /* Die Y-Achsen liegen als undurchsichtige Streifen ÜBER dem scrollenden
+       Chart und bleiben dadurch immer sichtbar (wie eine fixierte Spalte). */
+    .with-yfix { position: relative; }
+    .yfix { position: absolute; top: 0; bottom: 0; width: 40px; pointer-events: none; background: var(--surface); }
+    .yfix.l { left: 0; text-align: left; padding-left: 2px; }
+    .yfix.r { right: 0; text-align: right; padding-right: 2px; }
+    .yfix .t { position: absolute; top: 0; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .yfix.l .t { left: 2px; } .yfix.r .t { right: 2px; }
+    .yfix i { position: absolute; font-style: normal; font-size: 10px; transform: translateY(-50%); white-space: nowrap; }
+    .yfix.l i { left: 2px; } .yfix.r i { right: 2px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; font-weight: 600; padding: 4px 12px 10px; }
+    .legend i { display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: 3px; }
+    .legend i.box { width: 12px; height: 11px; vertical-align: -1px; }
+    .legend i.dash { background: repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 5px); }
+
+    /* ── Makro ────────────────────────────────────────────────────────── */
+    .blockbar { display: flex; height: 40px; border: 2px solid var(--border); position: relative; background: var(--surface); }
+    .blockbar > i { display: block; height: 100%; border-right: 1px solid var(--bg); }
+    .blockbar > i.past { background: var(--text); } .blockbar > i.cur { background: var(--yellow); }
+    .blockbar > i.fut { background: var(--surface); } .blockbar > i.deload { background: var(--accent); } .blockbar > i.race { background: var(--red); }
+    .blockbar > s { position: absolute; top: -6px; bottom: -6px; width: 4px; background: var(--red); }
+    .blocklbl { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; font-weight: 700; margin-top: 6px; }
+    .blocklbl .wk { color: var(--red); }
+    table.mk { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .mk th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; text-align: left; padding: 9px 8px; border-bottom: 2px solid var(--border); }
+    .mk td { padding: 11px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .mk td.kw { font-family: 'Archivo Black', sans-serif; font-size: 18px; width: 44px; }
+    .mk .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .mk .num span { color: var(--muted); }
+    .mk .num.bad { color: var(--red); font-weight: 700; }
+    .mk td.st { width: 34px; text-align: center; font-size: 16px; }
+    .mk tr.cur td { background: var(--yellow); color: var(--on-yellow); }
+    .mk tr.cur .num span { color: rgba(20,20,20,.6); }
+    .mk tr.deload td { background: var(--accent); color: var(--on-block); font-weight: 700; }
+    .mk tr.deload .num span { color: rgba(255,255,255,.75); }
+    .mk tr.race td { background: var(--red); color: var(--on-block); font-weight: 700; }
+    .mk tr.detail td { background: var(--yellow); padding: 0 8px 10px; }
+    .mk .open { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mk .open > div { border: 2px solid #141414; padding: 8px 10px; background: var(--surface); color: var(--text); }
+    .mk .open > div.red { background: var(--red); color: var(--on-block); }
+    .mk .open .k { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .mk .open .v { font-family: 'Archivo Black', sans-serif; font-size: 20px; }
+    .mk .open .v small { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; margin-left: 4px; }
+    .mk .flags { font-size: 12px; font-weight: 600; color: #141414; margin-top: 8px; display: flex; gap: 14px; }
+
+    /* ── Intra / Listen ───────────────────────────────────────────────── */
+    .days { border: 2px solid var(--border); background: var(--surface); }
+    .day { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 9px 10px; border-bottom: 1px solid var(--hairline); }
+    .day:last-child { border-bottom: 0; }
+    .day.today { background: var(--surface2); box-shadow: inset 4px 0 0 var(--yellow); }
+    .day .d { font-weight: 700; font-size: 12px; line-height: 1.2; } .day .d b { display: block; font-family: 'Archivo Black', sans-serif; font-size: 16px; }
+    .day .c { min-width: 0; font-size: 12px; line-height: 1.4; }
+    .day .c .n { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .day .c .p { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .day .c .plan { color: var(--accent); font-weight: 600; }
+    .day .t { text-align: right; font-size: 11px; color: var(--muted); } .day .t b { display: block; font-size: 16px; color: var(--text); }
+    .acts { border: 2px solid var(--border); background: var(--surface); }
+    .act { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 9px 10px; border-bottom: 1px solid var(--hairline); }
+    .act:last-child { border-bottom: 0; } .act > div { min-width: 0; }
+    .act-icon { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: var(--surface2); }
+    .act h4 { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .act p { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .act-right { text-align: right; font-size: 11px; color: var(--muted); line-height: 1.4; } .act-right b { display: block; font-size: 15px; color: var(--text); }
+    .sec-title { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin: 4px 0 -4px; display: flex; justify-content: space-between; }
+    .empty { color: var(--muted); font-size: 12px; padding: 10px; }
+
+    /* ── Kalender ─────────────────────────────────────────────────────── */
+    .cal { border: 2px solid var(--border); background: var(--surface); padding: 8px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-grid .h { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-align: center; color: var(--muted); padding: 4px 0; }
+    .cd { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; font-weight: 600; border: 1px solid transparent; }
+    .cd.other { color: var(--muted); opacity: .45; }
+    .cd.today { border-color: var(--border); font-weight: 700; }
+    .cd.sel { background: var(--yellow); color: var(--on-yellow); }
+    .cd .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot.run { background: var(--accent); } .dot.bike { background: var(--green); } .dot.rest, .dot.other { background: var(--muted); } .dot.plan { background: transparent; border: 2px solid var(--accent); }
+    .cal-nav { display: flex; gap: 6px; }
+    .cal-nav .btn { padding: 6px 12px; font-size: 14px; }
+
+    /* ── Tab-Leiste ───────────────────────────────────────────────────── */
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 3px solid var(--border);
+              padding-bottom: env(safe-area-inset-bottom); display: grid; grid-template-columns: repeat(4, 1fr); z-index: 10; }
+    .tab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+           color: var(--text); text-decoration: none; }
+    .tab svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .tab.active { color: var(--red); }
+    /* ── Detailansicht einer Einheit ─────────────────────────────────── */
+    .act, .day .c .n { cursor: pointer; }
+    .act:active { background: var(--surface2); }
+    .d-head { display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: center; }
+    .d-icon { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: var(--surface2); border: 1px solid var(--border); }
+    .d-name { font-size: 17px; font-weight: 800; line-height: 1.2; }
+    .d-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .d-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .d-stats > div { background: var(--surface2); padding: 8px 4px; text-align: center; min-width: 0; }
+    .d-stats b { display: block; font-size: 14px; font-weight: 700; white-space: nowrap; }
+    .d-stats span { display: block; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+    .inp { width: 100%; font: inherit; font-size: 13px; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); outline: none; }
+    .inp:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+    textarea.inp { min-height: 72px; resize: vertical; }
+    .chip { font: inherit; font-size: 12px; font-weight: 700; padding: 6px 12px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; }
+    .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .chip.no.on { background: var(--red); border-color: var(--red); }
+    #d-map { height: 220px; border: 1px solid var(--border); }
+    /* Im Dunkelmodus die hellen OSM-Kacheln abdunkeln (die Route bleibt farbig) */
+    #d-map.night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9); }
+    .stream-block { display: none; margin-bottom: 12px; }
+    .stream-title { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 6px; }
+    .stream-block .chart-area { height: 110px; }
+    table.laps { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .laps th { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+    .laps td { padding: 8px; border-bottom: 1px solid var(--hairline); }
+    .laps .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .err { border: 2px solid var(--red); color: var(--red); padding: 10px 12px; font-size: 12px; background: var(--surface); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="err" id="m-error" hidden></div>
+
+  <!-- ═══════════ ÜBERBLICK ═══════════ -->
+  <section class="view active" id="v-ueberblick">
+    <div class="head">
+      <div><div class="eyebrow" id="o-date">—</div><div class="title">Last-<br>Dashboard</div></div>
+      <div class="badge" id="o-kw">KW —</div>
+    </div>
+    <div class="subrow"><span id="o-sync">Sync: —</span><span style="display:flex;gap:6px">
+      <button class="btn" id="btn-sync" onclick="startSync()">⟳ Garmin</button>
+      <button class="btn" onclick="loadAll()" title="Neu laden">↻</button>
+      <button class="btn" id="themeBtn" onclick="toggleTheme()" title="Hell / dunkel">☀️</button>
+    </span></div>
+
+    <div class="blocks">
+      <div class="blk c-ctl"  id="b-ctl"><div class="k">CTL – Fitness</div><div class="v">—</div><div class="s">—</div></div>
+      <div class="blk c-atl"  id="b-atl"><div class="k">ATL – Ermüdung</div><div class="v">—</div><div class="s">—</div></div>
+      <div class="blk c-tsb"  id="b-tsb"><div class="k">TSB – Form</div><div class="v">—</div><div class="s">—</div></div>
+      <div class="blk c-mech" id="b-mech"><div class="k">Mech-Budget</div><div class="v">—</div><div class="s">—</div></div>
+    </div>
+
+    <div class="strip">
+      <div><b id="s-ri">—</b><span>Erholung</span><em id="s-ri-l"></em></div>
+      <div><b id="s-hrv">—</b><span>HRV</span><em id="s-hrv-d"></em></div>
+      <div><b id="s-sleep">—</b><span>Schlaf</span><em id="s-rhr"></em></div>
+      <div><b id="s-q">—</b><span>Heute</span><em id="s-q-l"></em></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><h3>1 · Trainingslast + Zielkorridor</h3><span class="tag" id="t-korr">—</span></div>
+      <div class="sec-b with-yfix">
+        <div class="scroll-x" id="tl-scroll"><div class="chart-area" style="height:230px"><canvas id="c-aer"></canvas></div></div>
+        <div class="yfix l" id="tl-y-l"></div>
+        <div class="yfix r" id="tl-y-r"></div>
+      </div>
+      <div class="scroll-hint">← seitlich wischen für alle Wochen</div>
+      <div class="legend"><span><i class="box" style="background:var(--accent);opacity:.4"></i>L<sub>aer</sub> – aerobe Last</span><span><i class="box" style="background:#fb923c;border-radius:50%;width:9px;height:9px"></i>L<sub>mech</sub> – mechanische Last</span><span><i style="background:rgba(251,146,60,0.5)"></i>Mech-Last (28-Tage-Ø)</span><span><i class="box" style="background:repeating-linear-gradient(135deg,rgba(79,142,247,.9) 0 1.5px,transparent 1.5px 4px)"></i>Korridor L<sub>aer</sub> (<span id="tl-raer">r<sub>aer</sub> –</span>)</span><span><i class="box" style="background:repeating-linear-gradient(135deg,rgba(251,146,60,.9) 0 1.5px,transparent 1.5px 4px)"></i>Korridor L<sub>mech</sub> (<span id="tl-rmech">r<sub>mech</sub> –</span>)</span><span><i class="box" style="border:1.5px dashed var(--text);background:transparent"></i>L̂ geplant</span></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><h3>2 · Mech-Budget · 28-Tage-Decke</h3><span class="tag" id="t-mech">—</span></div>
+      <div class="sec-b"><div class="chart-area"><canvas id="c-mech"></canvas></div></div>
+      <div class="legend"><span><i class="box" style="background:#fb923c;border-radius:50%;width:9px;height:9px"></i>L<sub>mech</sub> / Woche</span><span><i class="dash" style="color:rgba(251,146,60,0.7)"></i>28-Tage-Ø</span><span><i style="background:var(--red)"></i>Decke = Ø<sub>k−1</sub>·(1+r<sub>mech</sub>)</span><span><i class="box" style="background:rgba(242,184,7,0.3)"></i>Restbudget</span><span><i class="box" style="background:rgba(226,84,60,0.55)"></i>Überschuss → Gate 2</span></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><h3>3 · Form gegen −0,35·CTL</h3><span class="tag" id="t-form">—</span></div>
+      <div class="sec-b"><div class="chart-area" style="height:150px"><canvas id="c-form"></canvas></div><div class="chart-area" style="height:84px"><canvas id="c-acwr"></canvas></div></div>
+      <div class="legend"><span><i style="background:var(--text)"></i>TSB (t−1)</span><span><i style="background:var(--red)"></i>Grenze −0,35·CTL</span><span><i class="box" style="background:rgba(127,168,92,0.45)"></i>Headroom</span><span><i class="box" style="background:var(--yellow);border-radius:50%;width:9px;height:9px"></i>ATL/CTL</span><span><i class="box" style="background:rgba(127,168,92,0.25)"></i>ACWR-Band 0,8–1,3</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ MAKRO ═══════════ -->
+  <section class="view" id="v-makro">
+    <div class="head">
+      <div><div class="eyebrow" id="mk-eyebrow">—</div><div class="title">Makroplan</div></div>
+      <div class="head-right"><div class="lbl">Ziel</div><div class="big" id="mk-goal">KW —</div></div>
+    </div>
+    <div>
+      <div class="blockbar" id="mk-bar"></div>
+      <div class="blocklbl" id="mk-bar-lbl"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><h3>L<sub>aer</sub>-Ziel pro Woche</h3><span class="tag" id="mk-raer">r<sub>aer</sub> —</span></div>
+      <div class="sec-b with-yfix">
+        <div class="scroll-x" id="mk-scroll"><div class="chart-area" style="height:210px"><canvas id="c-makro"></canvas></div></div>
+        <div class="yfix l" id="mk-y-l"></div>
+      </div>
+      <div class="scroll-hint">← seitlich wischen für alle Wochen</div>
+      <div class="legend"><span><i class="box" style="border:1.5px dashed var(--muted);background:transparent"></i>Geplant</span><span><i class="box" style="background:var(--muted)"></i>Tatsächlich</span><span><i class="box" style="background:#3b82f6"></i>Base</span><span><i class="box" style="background:#22c55e"></i>Build</span><span><i class="box" style="background:#ef4444"></i>Peak</span><span><i class="box" style="background:#94a3b8"></i>Deload</span><span><i class="box" style="background:#a78bfa"></i>Taper</span><span><i class="box" style="background:#f59e0b"></i>Race</span></div>
+    </div>
+    <div class="sec" style="overflow:hidden">
+      <table class="mk"><thead><tr><th>KW</th><th>Phase</th><th class="num">L<sub>aer</sub></th><th class="num">L<sub>mech</sub></th><th></th></tr></thead><tbody id="mk-rows"><tr><td colspan="5" class="empty">Wird geladen…</td></tr></tbody></table>
+    </div>
+  </section>
+
+  <!-- ═══════════ INTRA ═══════════ -->
+  <section class="view" id="v-intra">
+    <div class="head">
+      <div><div class="eyebrow" id="in-eyebrow">—</div><div class="title">Diese<br>Woche</div></div>
+      <div class="head-right"><div class="lbl">L<sub>aer</sub></div><div class="big" id="in-sum">—</div><div class="lbl" id="in-target"></div></div>
+    </div>
+    <div class="days" id="in-days"><div class="empty">Wird geladen…</div></div>
+    <div class="sec-title"><span>Letzte Einheiten</span><span id="in-streak"></span></div>
+    <div class="acts" id="in-acts"><div class="empty">—</div></div>
+  </section>
+
+  <!-- ═══════════ KALENDER ═══════════ -->
+  <section class="view" id="v-kalender">
+    <div class="head">
+      <div><div class="eyebrow" id="ka-eyebrow">—</div><div class="title" id="ka-title">Kalender</div></div>
+      <div class="cal-nav"><button class="btn" onclick="calShift(-1)">‹</button><button class="btn" onclick="calShift(1)">›</button></div>
+    </div>
+    <div class="cal"><div class="cal-grid" id="ka-grid"></div></div>
+    <div class="legend" style="padding:0 2px"><span><i class="box dot run" style="border-radius:50%;width:9px;height:9px"></i>Laufen</span><span><i class="box dot bike" style="border-radius:50%;width:9px;height:9px"></i>Rad</span><span><i class="box dot rest" style="border-radius:50%;width:9px;height:9px"></i>Sonstige</span><span><i class="box dot plan" style="border-radius:50%;width:9px;height:9px"></i>Geplant</span></div>
+    <div class="sec-title"><span id="ka-day-title">Tag</span></div>
+    <div class="acts" id="ka-day"><div class="empty">Tag antippen.</div></div>
+    <div class="sec-title"><span>Geplant · nächste 14 Tage</span></div>
+    <div class="acts" id="ka-plans"><div class="empty">—</div></div>
+    <div style="text-align:center;font-size:12px;padding:8px 0"><a href="/?desktop=1" style="color:var(--muted)">Desktop-Ansicht</a> · <a href="/logout" style="color:var(--muted)">Abmelden</a></div>
+  </section>
+  <!-- ═══════════ EINHEIT · DETAIL ═══════════ -->
+  <section class="view" id="v-detail">
+    <div class="head" style="align-items:center">
+      <button class="btn" onclick="closeDetail()">‹ Zurück</button>
+      <span style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Einheit</span>
+    </div>
+    <div class="card">
+      <div class="d-head">
+        <div class="d-icon" id="d-icon">🏃</div>
+        <div style="min-width:0"><div class="d-name" id="d-name">—</div><div class="d-meta" id="d-meta">—</div></div>
+      </div>
+      <div class="d-stats" id="d-stats" style="margin-top:12px"></div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+        <span style="color:var(--accent);flex-shrink:0">🎯</span>
+        <input class="inp" id="d-intention" placeholder="Intention dieser Einheit…" onblur="saveIntention()" onkeydown="if(event.key==='Enter')this.blur()">
+        <span id="d-met" style="display:none;gap:6px;flex-shrink:0">
+          <button class="chip" id="d-met-yes" onclick="setMet('yes')">✓</button>
+          <button class="chip no" id="d-met-no" onclick="setMet('no')">✗</button>
+        </span>
+      </div>
+      <div id="d-rpe-wrap" style="display:none;align-items:center;gap:8px;margin-top:10px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">RPE 0–10</span>
+        <input class="inp" id="d-rpe" type="number" min="0" max="10" step="0.5" style="width:90px" onblur="saveRpe()" onkeydown="if(event.key==='Enter')this.blur()">
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><h3>Verlauf</h3></div>
+      <div class="sec-b">
+        <div id="d-map" style="display:none;margin-bottom:12px"></div>
+        <div id="d-stream-msg" style="color:var(--muted);font-size:12px;padding:6px 4px">Verlauf wird geladen…</div>
+        <div id="d-streams" style="display:none;flex-direction:column">
+          <div class="stream-block"><div class="stream-title" style="color:#f87171">❤️ Herzfrequenz</div><div class="chart-area"><canvas id="d-c-hr"></canvas></div></div>
+          <div class="stream-block"><div class="stream-title" style="color:#fb923c" id="d-pace-title">🏃 Pace (min/km)</div><div class="chart-area"><canvas id="d-c-pace"></canvas></div></div>
+          <div class="stream-block"><div class="stream-title" style="color:#facc15">⚡ Power</div><div class="chart-area"><canvas id="d-c-pwr"></canvas></div></div>
+          <div class="stream-block"><div class="stream-title" style="color:#c084fc" id="d-cad-title">👟 Kadenz (SPM)</div><div class="chart-area"><canvas id="d-c-cad"></canvas></div></div>
+          <div class="stream-block"><div class="stream-title" style="color:#34d399">⛰️ Höhe</div><div class="chart-area"><canvas id="d-c-alt"></canvas></div></div>
+        </div>
+        <div id="d-laps" style="display:none;border:1px solid var(--border);margin-top:4px">
+          <button onclick="toggleLaps()" style="width:100%;display:flex;justify-content:space-between;padding:9px 10px;background:var(--surface2);border:0;color:var(--text);font:inherit;font-size:12px;font-weight:700;cursor:pointer">
+            <span>🏁 Runden (<span id="d-laps-count">0</span>)</span><span id="d-laps-caret">▾</span>
+          </button>
+          <div id="d-laps-table" style="display:none;overflow-x:auto">
+            <table class="laps"><thead><tr><th>#</th><th>Distanz</th><th class="num">Pace</th><th class="num">HF</th><th class="num">W</th></tr></thead><tbody id="d-laps-body"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><h3>Notiz &amp; KI-Analyse</h3></div>
+      <div class="sec-b">
+        <textarea class="inp" id="d-comment" placeholder="Wie war die Einheit? Wie fühlten sich die Beine an?…"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <button class="btn" onclick="saveComment(false)">Speichern</button>
+          <span id="d-saved" style="display:none;font-size:12px;color:var(--green)">✓ gespeichert</span>
+          <span style="flex:1"></span>
+          <button class="btn" id="d-ai-btn" style="background:var(--accent);color:#fff;border-color:var(--accent)" onclick="saveComment(true)">✦ Notiz speichern &amp; analysieren</button>
+        </div>
+        <div id="d-ai" style="margin-top:12px;font-size:13px;line-height:1.7"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<nav class="tabbar">
+  <a class="tab active" href="#ueberblick" data-v="ueberblick"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Überblick</a>
+  <a class="tab" href="#makro" data-v="makro"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Makro</a>
+  <a class="tab" href="#intra" data-v="intra"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-8 4 16 3-8h6"/></svg>Intra</a>
+  <a class="tab" href="#kalender" data-v="kalender"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Kalender</a>
+</nav>
+
+<script>
+  // ── Helfer ────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const de  = (v, d = 0) => (v == null || isNaN(v)) ? '—' : Number(v).toFixed(d).replace('.', ',');
+  const sgn = (v, d = 0) => (v == null || isNaN(v)) ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + de(Math.abs(v), d);
+  const MON = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const MONL = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const DOW = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const isDark = () => document.documentElement.getAttribute('data-theme') !== 'light';
+
+  /* ── Theme: hell zwischen Sonnenauf- und -untergang, manuell übersteuerbar
+        (dieselbe Regel wie im Desktop-Dashboard) ─────────────────────────── */
+  const _SUN_LAT = 48.21, _SUN_LNG = 16.37;   // Wien als Referenz für Europa
+  function _sunTimes(date) {
+    const rad = Math.PI / 180, deg = 180 / Math.PI;
+    const noonUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12);
+    const n      = Math.round((noonUTC - Date.UTC(2000, 0, 1, 12)) / 86400000 + 0.0008);
+    const Jstar  = n - _SUN_LNG / 360;
+    const M      = (357.5291 + 0.98560028 * Jstar) % 360;
+    const C      = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+    const lambda = (M + C + 282.9372) % 360;
+    const Jtran  = 2451545 + Jstar + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lambda * rad);
+    const delta  = Math.asin(Math.sin(lambda * rad) * Math.sin(23.4397 * rad)) * deg;
+    const cosO   = (Math.sin(-0.833 * rad) - Math.sin(_SUN_LAT * rad) * Math.sin(delta * rad))
+                 / (Math.cos(_SUN_LAT * rad) * Math.cos(delta * rad));
+    if (cosO >  1) return { polar: 'night' };
+    if (cosO < -1) return { polar: 'day'   };
+    const omega = Math.acos(cosO) * deg;
+    const fromJ = J => new Date((J - 2440588 + 0.5) * 86400000);
+    return { rise: fromJ(Jtran - omega / 360), set: fromJ(Jtran + omega / 360) };
+  }
+  function _autoTheme() {
+    const now = new Date(), t = _sunTimes(now);
+    if (t.polar === 'day')   return 'light';
+    if (t.polar === 'night') return 'dark';
+    return (now >= t.rise && now < t.set) ? 'light' : 'dark';
+  }
+  // Die manuelle Wahl überlebt einen Reload, verfällt aber an der nächsten
+  // Sonnengrenze – sonst säße man abends dauerhaft im Hellmodus fest.
+  let _lastAuto = _autoTheme(), _manualTheme = null;
+  try {
+    const st = JSON.parse(localStorage.getItem('dc2m_theme') || 'null');
+    if (st && st.auto === _lastAuto && (st.theme === 'light' || st.theme === 'dark')) _manualTheme = st.theme;
+  } catch (e) {}
+  function applyTheme(theme, rerender) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    meta.content = theme === 'light' ? '#EEF0E8' : '#141414';
+    document.head.appendChild(meta);
+    if (rerender && D.ready) {
+      ['ueberblick', 'makro', 'intra', 'kalender'].forEach(renderView);
+      if ($('v-detail').classList.contains('active') && _detailAct) renderDetail(_detailAct);
+    }
+  }
+  function toggleTheme() {
+    _manualTheme = isDark() ? 'light' : 'dark';
+    try { localStorage.setItem('dc2m_theme', JSON.stringify({ theme: _manualTheme, auto: _lastAuto })); } catch (e) {}
+    applyTheme(_manualTheme, true);
+  }
+  applyTheme(_manualTheme || _lastAuto, false);
+  setInterval(() => {
+    const auto = _autoTheme();
+    if (auto !== _lastAuto) {          // Sonnengrenze überschritten
+      _lastAuto = auto; _manualTheme = null;
+      try { localStorage.removeItem('dc2m_theme'); } catch (e) {}
+    }
+    const want = _manualTheme || auto;
+    if (want !== document.documentElement.getAttribute('data-theme')) applyTheme(want, true);
+  }, 60000);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+  // Eine Einheit als anklickbare Zeile (öffnet die Detailansicht)
+  function actRow(a, from) {
+    const dd = a.date_iso ? pd(a.date_iso) : null;
+    const dateTxt = dd && !isNaN(dd) ? `${DOW[dd.getDay()]} ${dd.getDate()}. ${MON[dd.getMonth()]}` : esc(a.date || '');
+    const bits = [];
+    if (a.dist) bits.push(`${de(a.dist, 1)} km`);
+    if (a.pace) bits.push(a.pace);
+    if (a.hr) bits.push(`${a.hr} bpm`);
+    if (a.np_watts || a.avg_watts) bits.push(`${a.np_watts || a.avg_watts} W`);
+    return `<div class="act" onclick="openDetail('${a.id}','${from}')">
+      <div class="act-icon">${a.icon || '\u{1F3C3}'}</div>
+      <div><h4>${esc(a.name)}</h4><p>${dateTxt} \u00b7 ${a.duration || ''} \u00b7 ${bits.join(' \u00b7 ')}</p></div>
+      <div class="act-right"><b>${Math.round(a.l_aer ?? a.tss ?? 0)}</b>L<sub>aer</sub>${(a.l_mech || 0) > 0 ? ` \u00b7 ${de(a.l_mech, 1)} mech` : ''}</div></div>`;
+  }
+  // Kalender und Wochenliste liefern nur Name + Datum – die Detailansicht
+  // braucht die Aktivitäts-ID, also hier nachschlagen.
+  function findAct(dateIso, name) {
+    return (D.acts || []).find(a => a.date_iso === dateIso && (!name || a.name === name))
+        || (D.acts || []).find(a => a.date_iso === dateIso);
+  }
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const pd  = s => new Date(String(s).slice(0, 10) + 'T00:00:00');
+  function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y0) / 864e5 + 1) / 7); }
+  function monday(d) { const m = new Date(d); m.setHours(0, 0, 0, 0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; }
+  const rgba = (hex, a) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+
+  async function getJSON(url, opts) {
+    const r = await fetch(url, opts);
+    if (r.status === 401) { location.href = '/login?next=' + encodeURIComponent('/m'); throw new Error('auth'); }
+    return r.json();
+  }
+  const safe = p => p.catch(() => null);
+  const charts = {};
+  function chart(id, cfg) { if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
+  function tip() { const d = isDark(); return { backgroundColor: d ? '#1c2236' : '#fff', borderColor: d ? '#262d42' : '#dde3ef', borderWidth: 1, titleColor: css('--text'), bodyColor: d ? '#8a93ad' : '#6b7a9b', displayColors: false }; }
+  function axes() { const d = isDark(); return { tick: d ? '#8a93ad' : '#6b7a9b', grid: d ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }; }
+  const A_TICK = () => axes().tick;
+  function hatch(ctx, color) { const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d'); g.strokeStyle = color; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-2, 10); g.lineTo(10, -2); g.moveTo(-2, 2); g.lineTo(2, -2); g.moveTo(6, 10); g.lineTo(10, 6); g.stroke(); return ctx.createPattern(c, 'repeat'); }
+
+  // ── Tabs ─────────────────────────────────────────────────────────────────
+  try { history.scrollRestoration = 'manual'; } catch (e) {}
+  function showView(name) {
+    if (name === 'detail' || !$('v-' + name)) name = 'ueberblick';
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'v-' + name));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.v === name));
+    try { localStorage.setItem('m_view', name); } catch (e) {}
+    window.scrollTo(0, 0);
+    // Charts brauchen sichtbare Canvas-Größen → nach dem Umschalten neu zeichnen
+    if (D.ready) setTimeout(() => renderView(name), 30);
+  }
+  window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
+
+  // ── Daten ────────────────────────────────────────────────────────────────
+  const D = { ready: false };
+  async function loadAll() {
+    $('m-error').hidden = true;
+    const [metrics, state, gates, makro, planned, hrv, prefill, cal, acts, morning] = await Promise.all([
+      safe(getJSON('/api/metrics')), safe(getJSON('/api/training_state')), safe(getJSON('/api/load_gates?future=4')),
+      safe(getJSON('/api/makroplan')), safe(getJSON('/api/planned_sessions')), safe(getJSON('/api/hrv_today')),
+      safe(getJSON('/api/morning_checkins/prefill')), safe(getJSON('/api/training_calendar')),
+      safe(getJSON('/api/activities?limit=40')), safe(getJSON('/api/morning_checkins')),
+    ]);
+    Object.assign(D, { metrics, state: state && state.available ? state : null, gates: gates && gates.available ? gates : null,
+                       makro: Array.isArray(makro) ? makro : [], planned: Array.isArray(planned) ? planned : [], hrv, prefill,
+                       cal: cal && cal.days ? cal : null, acts: Array.isArray(acts) ? acts : [], morning: Array.isArray(morning) ? morning : [], ready: true });
+    if (!metrics || metrics.error) { $('m-error').hidden = false; $('m-error').textContent = 'Keine Daten vom Server – Verbindung prüfen.'; }
+    const v = (location.hash.slice(1)) || (() => { try { return localStorage.getItem('m_view'); } catch (e) { return null; } })() || 'ueberblick';
+    showView(v);
+    ['ueberblick', 'makro', 'intra', 'kalender'].forEach(renderView);
+  }
+  function renderView(name) {
+    try {
+      if (name === 'ueberblick') renderOverview();
+      if (name === 'makro') renderMakro();
+      if (name === 'intra') renderIntra();
+      if (name === 'kalender') renderCalendar();
+    } catch (e) { console.error(name, e); }
+  }
+
+  // ═════════════════════════ ÜBERBLICK ═════════════════════════
+  function renderOverview() {
+    const m = D.metrics || {}, mt = m.metrics || {}, s = D.state, g = D.gates;
+    const now = new Date();
+    $('o-date').textContent = `${DOW[now.getDay()]} · ${now.getDate()}. ${MON[now.getMonth()]}`;
+    $('o-kw').textContent = `KW ${isoWeek(now)}`;
+    if (m.last_sync) $('o-sync').textContent = 'Sync: ' + m.last_sync;
+
+    const set = (id, v, sub) => { const el = $(id); el.querySelector('.v').innerHTML = v; el.querySelector('.s').innerHTML = sub; };
+    set('b-ctl', de(mt.ctl), mt.ctl_delta != null ? `${sgn(mt.ctl_delta, 1)} / Wo` : '—');
+    set('b-atl', de(mt.atl), mt.ratio != null ? `ACWR ${de(mt.ratio, 2)}${mt.ratio > 1.3 ? ` · <b style="color:${css('--red')}">Gate 4</b>` : ''}` : '—');
+    const load = (s && s.load) || {};
+    if (mt.tsb != null && load.tsb_limit != null) {
+      const puffer = mt.tsb - load.tsb_limit;
+      set('b-tsb', sgn(mt.tsb), `Gate ${sgn(load.tsb_limit)} · <b style="color:${puffer >= 0 ? css('--green') : css('--red')}">Puffer ${sgn(puffer)}</b>`);
+    } else set('b-tsb', sgn(mt.tsb), '—');
+    const mech = (s && s.mech) || {};
+    if (mech.budget != null) {
+      const over = mech.week > mech.budget;
+      const pct = Math.round((mech.week / mech.budget - 1) * 100);
+      set('b-mech', `${de(mech.week)}<small>/ ${de(mech.budget)}</small>`,
+          over ? `<b style="color:${css('--red')}">Decke +${pct} % · Gate 2</b>` : `<b style="color:${css('--green')}">Rest ${sgn(mech.headroom, 1)}</b>`);
+    } else set('b-mech', '—', '—');
+
+    // Heute-Leiste
+    if (s) { $('s-ri').textContent = de(s.recovery_index); $('s-ri-l').textContent = s.recovery_label || ''; $('s-q').textContent = s.quality_day ? '●' : '○'; $('s-q').style.color = s.quality_day ? css('--green') : css('--yellow'); $('s-q-l').textContent = s.quality_day ? 'Quality ok' : 'locker'; }
+    if (D.hrv && D.hrv.today != null) { $('s-hrv').textContent = de(D.hrv.today); $('s-hrv-d').textContent = D.hrv.delta != null ? `${sgn(D.hrv.delta, 1)} vs Ø30` : ''; $('s-hrv-d').style.color = D.hrv.delta == null ? '' : D.hrv.delta >= -3 ? css('--green') : D.hrv.delta >= -8 ? css('--yellow') : css('--red'); }
+    if (D.prefill) { $('s-sleep').textContent = D.prefill.sleep_score != null ? de(D.prefill.sleep_score) : '—'; $('s-rhr').textContent = D.prefill.rhr != null ? `RHR ${de(D.prefill.rhr)}` : ''; }
+
+    if (!g) return;
+    const W = g.weeks || [], F = g.future || [];
+    // Tags
+    const f0 = F[0];
+    const tK = $('t-korr');
+    if (f0 && f0.planned_source) {
+      if (f0.status_aer === 'gate2') { tK.className = 'tag'; tK.textContent = `+${Math.round((f0.planned_aer / f0.aer_hi - 1) * 100)} %`; }
+      else if (f0.status_aer === 'erhaltung') { tK.className = 'tag muted'; tK.textContent = `−${Math.round((1 - f0.planned_aer / f0.aer_lo) * 100)} %`; }
+      else { tK.className = 'tag green'; tK.textContent = 'im Band'; }
+    } else { tK.className = 'tag muted'; tK.textContent = 'kein Plan'; }
+    const last = W[W.length - 1];
+    const tM = $('t-mech');
+    if (last) { tM.className = 'tag ' + (last.over ? 'red' : 'green'); tM.textContent = last.over ? `+${last.over_pct} %` : `Rest ${sgn(last.rest_budget, 1)}`; }
+    const tF = $('t-form');
+    if (last) { tF.className = 'tag ' + (last.headroom >= 0 ? 'green' : 'red'); tF.textContent = `Puffer ${sgn(last.headroom)}`; }
+
+    const r = g.rates;
+    $('tl-raer').innerHTML  = r ? `r<sub>aer</sub> = ${de(r.r_aer, 2)}${r.sleep_week ? ' · Schlafwoche' : ''}` : 'r<sub>aer</sub> –';
+    $('tl-rmech').innerHTML = r ? `r<sub>mech</sub> = ${de(r.r_mech, 2)}${r.strength_week ? ' · Kraftwoche' : ''}` : 'r<sub>mech</sub> –';
+    chartTrainingslast(W, F);
+    // Achsenstreifen füllen und die Ausblick-Spalten in den Blick rücken (der
+    // Chart bleibt unverändert, nur der sichtbare Ausschnitt wandert).
+    requestAnimationFrame(() => {
+      fixedAxis(charts['c-aer'], 'tl-y-l', 'yAer', 'L<sub>aer</sub>', 'rgba(79,142,247,0.9)', v => Math.round(v).toLocaleString('de-DE'));
+      fixedAxis(charts['c-aer'], 'tl-y-r', 'yMech', 'L<sub>mech</sub>', 'rgba(251,146,60,0.95)', v => Math.round(v));
+      const tls = $('tl-scroll');
+      if (tls) tls.scrollLeft = tls.scrollWidth;
+    });
+    chartMech(W);
+    chartForm(W, g.acwr_band);
+  }
+
+  // ═════════════════════════ CHARTS (1:1 wie Desktop-v2) ═════════════════════════
+  // Dieselben Grafiken wie in dashboard_v2.html (Trainingslast + Zielkorridor,
+  // Mech-Decke, Form-Grenze + ACWR-Streifen, Makroplan) – nur schmaler gesetzt.
+  const PHASE_COLORS = { Base: '#3b82f6', Build: '#22c55e', Peak: '#ef4444', Deload: '#94a3b8', Taper: '#a78bfa', Race: '#f59e0b', Pre: '#64748b' };
+
+  function chartTrainingslast(W, F) {
+    const dark = isDark(), A = axes(), text = css('--text'), surface = css('--surface'), red = css('--red'), green = css('--green');
+    const nPast = W.length;
+    const labels = W.map(w => w.label.replace('KW ', '')).concat(F.map(f => f.label.replace('KW ', '')));
+    const pad = arr => arr.concat(F.map(() => null));
+    const aerMax  = Math.max(1, ...W.map(w => w.l_aer), ...F.map(f => Math.max(f.aer_hi, f.planned_aer || 0)));
+    const mechMax = Math.max(1, ...W.map(w => Math.max(w.l_mech, w.mech_avg)), ...F.map(f => Math.max(f.mech_hi, f.planned_mech || 0)));
+    chart('c-aer', {
+      data: { labels, datasets: [
+        { type: 'bar', label: 'aerobe Last / Woche', data: pad(W.map(w => w.l_aer)), backgroundColor: dark ? '#1d2840' : '#e3eafb', borderColor: 'rgba(79,142,247,0.5)', borderWidth: 1, borderRadius: 4, order: 3, yAxisID: 'yAer' },
+        { type: 'line', label: 'mechanische Last / Woche', data: pad(W.map(w => w.l_mech)), borderColor: '#fb923c', backgroundColor: '#fb923c', fill: false, tension: 0.35, borderWidth: 2.5, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: '#fb923c', order: 1, yAxisID: 'yMech' },
+        { type: 'line', label: 'Mech-Last (28-Tage-Ø)', data: pad(W.map(w => w.mech_avg)), borderColor: 'rgba(251,146,60,0.5)', backgroundColor: 'transparent', fill: false, tension: 0.4, borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, pointHoverRadius: 4, order: 0, yAxisID: 'yMech' },
+        { type: 'bar', label: '_future', data: W.map(() => null).concat(F.map(f => Math.max(f.aer_hi, f.planned_aer || 0))), backgroundColor: 'transparent', borderWidth: 0, grouped: false, yAxisID: 'yAer', order: 9 },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: { ...tip(), callbacks: {
+          title: it => { const i = it[0] ? it[0].dataIndex : -1; return (i >= nPast && F[i - nPast]) ? `${F[i - nPast].label} · Ausblick` : (it[0] ? `KW ${it[0].label}` : ''); },
+          label: it => { if (it.dataset.label === '_future') { const f = F[it.dataIndex - nPast]; if (!f) return null; const L = [`Korridor aerobe Last: ${Math.round(f.aer_lo)} – ${Math.round(f.aer_hi)}`, `Korridor mechanische Last: ${de(f.mech_lo, 1)} – ${de(f.mech_hi, 1)}`];
+              if (f.planned_source) { L.push(`Geplante aerobe Last: ${Math.round(f.planned_aer)} · ${({ reiz: 'im Band → Reiz', gate2: 'über dem Band → Gate 2', erhaltung: 'unter dem Band → Erhaltung' })[f.status_aer] || ''}`); L.push(`Geplante mechanische Last: ${de(f.planned_mech, 1)} · ${({ reiz: 'im Band → Reiz', gate2: 'über dem Band → Gate 2', erhaltung: 'unter dem Band → Erhaltung' })[f.status_mech] || ''}`); L.push(f.planned_source === 'sessions' ? `Quelle: ${f.planned_n} geplante Einheit(en)` : 'Quelle: Makroplan-Ziel'); }
+              else L.push('Keine geplante Last – Korridor folgt dem oberen Rand'); return L; }
+            return `${it.dataset.label}: ${it.formattedValue}`; } } } },
+        layout: { padding: { left: 42, right: 42, top: 4 } },
+        scales: {
+          // Beschriftung übernimmt fixedAxis() – im Canvas würde sie wegscrollen
+          yAer:  { type: 'linear', position: 'left', beginAtZero: true, suggestedMax: Math.ceil(aerMax * 1.18), grid: { color: A.grid }, ticks: { display: false, maxTicksLimit: 5 }, border: { display: false }, afterFit: sc => { sc.width = 0; } },
+          yMech: { type: 'linear', position: 'right', beginAtZero: true, suggestedMax: Math.ceil(mechMax * 1.25), grid: { display: false }, ticks: { display: false, maxTicksLimit: 5 }, border: { display: false }, afterFit: sc => { sc.width = 0; } },
+          x: { grid: { display: false }, ticks: { color: c => c.index >= nPast ? text : A.tick, font: c => ({ size: 10, weight: c.index >= nPast ? '700' : '400' }) } },
+        } },
+      plugins: [{
+        id: 'zielkorridor',
+        beforeDatasetsDraw(ch) {
+          if (!F.length) return; const { ctx, chartArea: ca, scales: { x } } = ch; const slot = _slot(x, labels.length); const x0 = x.getPixelForValue(nPast) - slot / 2;
+          ctx.save(); ctx.fillStyle = dark ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.035)'; ctx.fillRect(x0, ca.top, ca.right - x0, ca.bottom - ca.top);
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, ca.top); ctx.lineTo(x0, ca.bottom); ctx.stroke(); ctx.restore();
+        },
+        afterDatasetsDraw(ch) {
+          if (!F.length) return; const { ctx, chartArea: ca, scales: { x, yAer, yMech } } = ch; const slot = _slot(x, labels.length); const compact = slot < 66;
+          const meta0 = ch.getDatasetMeta(0); const barW = (meta0.data[0] && meta0.data[0].width) || slot * 0.6;
+          const hatchAer = hatch(ctx, 'rgba(79,142,247,0.85)'), hatchMech = hatch(ctx, 'rgba(251,146,60,0.9)');
+          const col = (st, base) => st === 'gate2' ? red : st === 'reiz' ? green : base;
+          ctx.save(); ctx.font = '600 10px Space Grotesk, sans-serif'; ctx.textAlign = 'center';
+          F.forEach((f, j) => {
+            const xc = x.getPixelForValue(nPast + j), l = xc - barW / 2;
+            const yLo = yAer.getPixelForValue(f.aer_lo), yHi = yAer.getPixelForValue(f.aer_hi), hA = Math.max(1, yLo - yHi);
+            ctx.setLineDash([]); ctx.fillStyle = hatchAer; ctx.fillRect(l, yHi, barW, hA); ctx.strokeStyle = 'rgba(79,142,247,0.65)'; ctx.lineWidth = 1; ctx.strokeRect(l + .5, yHi + .5, barW - 1, Math.max(1, hA - 1));
+            if (f.planned_aer != null && f.planned_aer > 0) { const yP = yAer.getPixelForValue(f.planned_aer), yZ = yAer.getPixelForValue(0), c = col(f.status_aer, text);
+              ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.strokeRect(l + 1, yP, barW - 2, yZ - yP); ctx.setLineDash([]);
+              ctx.fillStyle = c; ctx.textBaseline = 'bottom'; ctx.fillText(String(Math.round(f.planned_aer)), xc, Math.max(ca.top + 12, Math.min(yP, yHi) - 4)); }
+            const mLo = yMech.getPixelForValue(f.mech_lo), mHi = yMech.getPixelForValue(f.mech_hi), mw = Math.max(10, barW * 0.5), hM = Math.max(2, mLo - mHi);
+            ctx.fillStyle = hatchMech; ctx.fillRect(xc - mw / 2, mHi, mw, hM); ctx.strokeStyle = 'rgba(251,146,60,0.8)'; ctx.lineWidth = 1; ctx.strokeRect(xc - mw / 2 + .5, mHi + .5, mw - 1, Math.max(1, hM - 1));
+            // L_mech nur als hohler Punkt im Korridor – Zahl steht im Tooltip.
+            if (f.planned_mech != null && f.planned_mech > 0) { const yP = yMech.getPixelForValue(f.planned_mech), c = col(f.status_mech, '#fb923c');
+              ctx.beginPath(); ctx.arc(xc, yP, 4.5, 0, Math.PI * 2); ctx.fillStyle = surface; ctx.fill(); ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.stroke(); }
+          });
+          ctx.restore();
+        },
+      }],
+    });
+  }
+  function _slot(x, n) { return n > 1 ? Math.abs(x.getPixelForValue(1) - x.getPixelForValue(0)) : (x.right - x.left); }
+
+  // Y-Achse als undurchsichtiger Streifen neben dem scrollenden Chart: Chart.js
+  // zeichnet die Achse im Canvas nicht mehr (sie würde wegscrollen), die Ticks
+  // werden hier an denselben Pixelpositionen als HTML gesetzt.
+  function fixedAxis(chart, boxId, scaleId, title, color, fmt) {
+    const box = $(boxId); if (!box || !chart) return;
+    const sc = chart.scales[scaleId]; if (!sc) { box.innerHTML = ''; return; }
+    const cRect = chart.canvas.getBoundingClientRect();
+    const bRect = box.getBoundingClientRect();
+    const off = cRect.top - bRect.top;
+    const ticks = (sc.ticks || []).map(t => {
+      const y = off + sc.getPixelForValue(t.value);
+      return `<i style="top:${y.toFixed(1)}px;color:${color}">${fmt ? fmt(t.value) : t.label}</i>`;
+    }).join('');
+    box.innerHTML = `<span class="t" style="color:${color}">${title}</span>${ticks}`;
+  }
+
+  function chartMech(W) {
+    const A = axes(), red = css('--red'), text = css('--text');
+    const maxV = Math.max(1, ...W.map(w => Math.max(w.l_mech || 0, w.ceiling || 0, w.mech_avg || 0)));
+    chart('c-mech', {
+      data: { labels: W.map(w => w.label.replace('KW ', '')), datasets: [
+        { type: 'line', label: 'mechanische Last / Woche', data: W.map(w => w.l_mech), borderColor: '#fb923c', backgroundColor: '#fb923c', tension: 0.3, borderWidth: 2.5, fill: false, order: 0, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: W.map(w => w.over ? red : '#fb923c'), pointBorderColor: W.map(w => w.over ? red : '#fb923c') },
+        { type: 'line', label: 'Decke', data: W.map(w => w.ceiling), borderColor: red, backgroundColor: red, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, order: 2, fill: { target: '+1', above: 'rgba(242,184,7,0.20)', below: 'rgba(226,84,60,0.12)' } },
+        { type: 'line', label: '28-Tage-Ø', data: W.map(w => w.mech_avg), borderColor: 'rgba(251,146,60,0.7)', backgroundColor: 'transparent', borderDash: [5, 3], tension: 0.3, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, order: 3, fill: false },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, layout: { padding: { right: 18, top: 14 } },
+        plugins: { legend: { display: false }, tooltip: { ...tip(), callbacks: { title: it => it[0] ? `KW ${it[0].label}` : '', label: it => `${it.dataset.label}: ${de(it.raw)}`,
+          afterBody: it => { const w = W[it[0].dataIndex]; const out = [`Restbudget (Decke − Ø): ${sgn(w.rest_budget, 1)}`, `Steigerungsrate mechanisch: ${de(w.r_mech, 2)}`]; if (w.over) out.push(`Überschuss: +${w.over_pct} % → Regel 2 hätte Lauf → Rad ausgelöst`); return out; } } } },
+        scales: { y: { beginAtZero: true, suggestedMax: Math.ceil(maxV * 1.15), grid: { color: A.grid }, ticks: { color: A.tick, font: { size: 10 }, maxTicksLimit: 5 } }, x: { grid: { display: false }, ticks: { color: c => c.index === W.length - 1 ? text : A.tick, font: c => ({ size: 10, weight: c.index === W.length - 1 ? '700' : '400' }) } } } },
+      plugins: [{ id: 'mechUeberschuss', afterDatasetsDraw(ch) { const { ctx: c, scales: { x, y } } = ch; const slot = _slot(x, W.length); const bw = Math.max(8, Math.min(26, slot * 0.34));
+        c.save(); c.font = '700 10px Space Grotesk, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom';
+        W.forEach((w, i) => { if (!w.over) return; const xc = x.getPixelForValue(i), yC = y.getPixelForValue(w.ceiling), yL = y.getPixelForValue(w.l_mech);
+          c.fillStyle = 'rgba(226,84,60,0.45)'; c.fillRect(xc - bw / 2, yL, bw, Math.max(1, yC - yL)); c.fillStyle = red; c.fillText(`+${w.over_pct} %`, xc, yL - 8); });
+        c.restore(); } }],
+    });
+  }
+
+  function chartForm(W, band) {
+    const A = axes(), red = css('--red'), green = css('--green'), text = css('--text'), yellow = css('--yellow'), muted = css('--muted');
+    const [bandLo, bandHi] = band || [0.8, 1.3];
+    const Y_AXIS_W = 40;
+    const tsb = W.map(w => w.tsb), limit = W.map(w => w.tsb_limit);
+    const vals = tsb.concat(limit).filter(v => v != null); const vMin = Math.min(0, ...vals), vMax = Math.max(0, ...vals); const pad = Math.max(5, (vMax - vMin) * 0.15);
+    chart('c-form', {
+      data: { labels: W.map(w => w.label.replace('KW ', '')), datasets: [
+        { type: 'line', label: 'TSB (t−1)', data: tsb, borderColor: text, backgroundColor: text, tension: 0, borderWidth: 2.5, order: 0, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: W.map(w => w.headroom < 0 ? red : text), pointBorderColor: W.map(w => w.headroom < 0 ? red : text), fill: { target: '+1', above: 'rgba(127,168,92,0.32)', below: 'rgba(226,84,60,0.35)' } },
+        { type: 'line', label: 'Grenze −0,35·CTL', data: limit, borderColor: red, backgroundColor: red, tension: 0.3, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, order: 1, fill: false },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, layout: { padding: { right: 56, top: 6 } },
+        plugins: { legend: { display: false }, tooltip: { ...tip(), callbacks: { title: it => it[0] ? `KW ${it[0].label}` : '', label: it => `${it.dataset.label}: ${sgn(it.raw)}`,
+          afterBody: it => { const w = W[it[0].dataIndex]; return [`CTL ${de(w.ctl)} · ATL ${de(w.atl)}`, `Headroom: ${sgn(w.headroom)}` + (w.headroom < 0 ? ' → Regel 3: Intensität auf Z2' : '')]; } } } },
+        scales: { y: { suggestedMin: Math.floor(vMin - pad), suggestedMax: Math.ceil(vMax + pad), grid: { color: c => (c.tick && c.tick.value === 0) ? (isDark() ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)') : A.grid }, ticks: { color: A.tick, font: { size: 10 }, stepSize: 20 }, afterFit: s => { s.width = Y_AXIS_W; } },
+                  x: { grid: { display: false }, border: { display: false }, ticks: { display: false } } } },
+      plugins: [{ id: 'headroomBracket', afterDatasetsDraw(ch) { const { ctx: c, scales: { x, y } } = ch; const i = W.length - 1, w = W[i]; if (!w) return;
+        const xb = x.getPixelForValue(i) + 12, y1 = y.getPixelForValue(w.tsb), y2 = y.getPixelForValue(w.tsb_limit), colr = w.headroom >= 0 ? green : red;
+        c.save(); c.strokeStyle = colr; c.lineWidth = 2; c.beginPath(); c.moveTo(xb, y1); c.lineTo(xb, y2); c.stroke(); c.beginPath(); c.moveTo(xb - 3, y1); c.lineTo(xb + 3, y1); c.moveTo(xb - 3, y2); c.lineTo(xb + 3, y2); c.stroke();
+        c.fillStyle = colr; c.font = '700 10px Space Grotesk, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(`${sgn(w.headroom)}`, xb + 6, (y1 + y2) / 2); c.restore(); } }],
+    });
+    const ratio = W.map(w => w.ratio);
+    chart('c-acwr', {
+      data: { labels: W.map(w => w.label.replace('KW ', '')), datasets: [
+        { type: 'line', label: 'ATL/CTL', data: ratio, borderColor: yellow, backgroundColor: yellow, tension: 0.3, borderWidth: 2, order: 0, fill: false, pointRadius: 3, pointHoverRadius: 5,
+          pointBackgroundColor: ratio.map(r => r == null ? yellow : r > bandHi ? red : r < bandLo ? muted : yellow), pointBorderColor: ratio.map(r => r == null ? yellow : r > bandHi ? red : r < bandLo ? muted : yellow) },
+        { type: 'line', label: 'band-hi', data: W.map(() => bandHi), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: 'rgba(127,168,92,0.22)', order: 2 },
+        { type: 'line', label: 'band-lo', data: W.map(() => bandLo), borderWidth: 0, pointRadius: 0, fill: false, order: 3 },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, layout: { padding: { right: 56, top: 2 } },
+        plugins: { legend: { display: false }, tooltip: { ...tip(), filter: it => it.dataset.label === 'ATL/CTL', callbacks: { title: it => it[0] ? `KW ${it[0].label}` : '', label: it => { const r = it.raw; return `ATL/CTL: ${de(r, 2)}${r == null ? '' : r > bandHi ? ' → Gate 4: Ermüdung hoch' : r < bandLo ? ' (unter dem Band)' : ' ✓ im Band'}`; } } } },
+        scales: { y: { min: Math.min(0.5, ...ratio.filter(v => v != null)) - 0.05, max: Math.max(1.6, ...ratio.filter(v => v != null)) + 0.05, grid: { display: false }, afterBuildTicks: a => { a.ticks = [{ value: bandLo }, { value: bandHi }]; }, ticks: { color: A.tick, font: { size: 10 }, callback: v => de(v, 1) }, afterFit: s => { s.width = Y_AXIS_W; } },
+                  x: { grid: { display: false }, ticks: { color: c => c.index === W.length - 1 ? text : A.tick, font: c => ({ size: 10, weight: c.index === W.length - 1 ? '700' : '400' }), autoSkip: false, maxRotation: 0 } } } },
+    });
+  }
+
+  function chartMakro(P, curIdx) {
+    const dark = isDark(), A = axes();
+    const phaseColors = P.map(w => PHASE_COLORS[w.phase] || '#4f8ef7');
+    const neutralLine = dark ? '#cbd5e1' : '#475569', cardBg = css('--surface');
+    chart('c-makro', {
+      type: 'bar',
+      data: { labels: P.map(w => w.week), datasets: [
+        { label: 'Geplant', data: P.map(w => w.tss_target), backgroundColor: phaseColors.map(c => rgba(c, 0.30)), borderWidth: 0, borderRadius: 3, borderSkipped: false, barPercentage: 0.9, categoryPercentage: 0.8, grouped: false },
+        { label: 'Tatsächlich', data: P.map(w => w.tss_actual), backgroundColor: phaseColors.map(c => rgba(c, 0.95)), borderRadius: 3, borderSkipped: false, barPercentage: 0.45, categoryPercentage: 0.8, grouped: false },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, layout: { padding: { bottom: 10, left: 42, right: 8, top: 4 } },
+        plugins: { legend: { display: false }, tooltip: { ...tip(), callbacks: { title: it => { const w = P[it[0].dataIndex]; return `${w.week} – ${w.block_name}`; },
+          label: it => { const w = P[it.dataIndex]; if (it.datasetIndex === 0) return `Ziel aerobe Last: ${Math.round(w.tss_target)}`; if (w.tss_actual == null) return null; const diff = w.tss_actual - w.tss_target; return `Tatsächlich: ${Math.round(w.tss_actual)} (${diff >= 0 ? '+' : ''}${Math.round(diff)})`; },
+          afterBody: it => { const w = P[it[0].dataIndex]; return `Phase: ${w.phase}\n${w.start_date} – ${w.end_date}`; } } } },
+        scales: { x: { grid: { color: A.grid }, ticks: { color: A.tick, font: { size: 9 }, maxRotation: 0, autoSkip: true, callback: (v, i) => P[i] ? P[i].week : v } },
+                  y: { grid: { color: A.grid }, ticks: { display: false, maxTicksLimit: 5 }, border: { display: false }, afterFit: sc => { sc.width = 0; } } } },
+      plugins: [{ id: 'currentWeekMarker', afterDraw(ch) { if (curIdx < 0) return; const c = ch.ctx, bar = ch.getDatasetMeta(0).data[curIdx]; if (!bar) return; const x = bar.x, apex = ch.chartArea.bottom + 22, size = 5;
+        c.save(); c.beginPath(); c.moveTo(x, apex); c.lineTo(x - size, apex + size * 1.5); c.lineTo(x + size, apex + size * 1.5); c.closePath(); c.fillStyle = '#ef4444'; c.fill(); c.restore(); } },
+      { id: 'plannedDashedBorder', afterDatasetsDraw(ch) { const c = ch.ctx, meta = ch.getDatasetMeta(0); meta.data.forEach((bar, i) => { const { x, y, base, width } = bar.getProps(['x', 'y', 'base', 'width'], true); const l = x - width / 2, r = x + width / 2, rr = 3;
+        c.save(); c.strokeStyle = phaseColors[i]; c.lineWidth = 1.5; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(l, base); c.lineTo(l, y + rr); c.quadraticCurveTo(l, y, l + rr, y); c.lineTo(r - rr, y); c.quadraticCurveTo(r, y, r, y + rr); c.lineTo(r, base); c.stroke(); c.restore(); }); } },
+      { id: 'tssDiffMarker', afterDatasetsDraw(ch) { const c = ch.ctx, y = ch.scales.y, meta = ch.getDatasetMeta(1); const cap = 4;
+        P.forEach((w, i) => { if (w.tss_actual == null) return; const bar = meta.data[i]; if (!bar) return; const x = bar.x, yP = y.getPixelForValue(w.tss_target), yA = y.getPixelForValue(w.tss_actual), diff = w.tss_actual - w.tss_target, over10 = w.tss_actual > w.tss_target * 1.1;
+          c.save(); c.strokeStyle = neutralLine; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, yP); c.lineTo(x, yA); c.moveTo(x - cap, yP); c.lineTo(x + cap, yP); c.moveTo(x - cap, yA); c.lineTo(x + cap, yA); c.stroke();
+          if (Math.abs(yP - yA) > 14) { const txt = (diff >= 0 ? '+' : '') + Math.round(diff); c.font = '700 8px Space Grotesk, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; const my = (yP + yA) / 2, tw = c.measureText(txt).width;
+            c.fillStyle = cardBg; c.fillRect(x - tw / 2 - 2, my - 6, tw + 4, 12); c.fillStyle = over10 ? '#ef4444' : neutralLine; c.fillText(txt, x, my); }
+          c.restore(); }); } }],
+    });
+  }
+
+  // ═════════════════════════ MAKRO ═════════════════════════
+  function renderMakro() {
+    const P = D.makro || [], g = D.gates, s = D.state;
+    const rows = $('mk-rows');
+    if (!P.length) { rows.innerHTML = '<tr><td colspan="5" class="empty">Kein Makroplan.</td></tr>'; return; }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const ti = iso(today);
+    const gw = {}; (g && g.weeks || []).forEach(w => { gw[w.start] = w; });
+    const gf = {}; (g && g.future || []).forEach(f => { gf[f.start] = f; });
+    const curIdx = P.findIndex(r => r.start_date <= ti && ti <= r.end_date);
+    const cur = P[curIdx];
+
+    // Kopf: Block · Woche i von n · Ziel-KW
+    if (cur) {
+      const blockRows = P.filter(r => r.block_name === cur.block_name);
+      const i = blockRows.findIndex(r => r.week === cur.week) + 1;
+      $('mk-eyebrow').textContent = `${cur.block_name} · Woche ${i} von ${blockRows.length}`;
+    } else $('mk-eyebrow').textContent = today < pd(P[0].start_date) ? 'Vor Planstart' : 'Plan beendet';
+    const race = [...P].reverse().find(r => /race|wettkampf|rennen/i.test(r.phase + ' ' + r.block_name)) || P[P.length - 1];
+    $('mk-goal').textContent = `KW ${isoWeek(pd(race.start_date))}`;
+    const r = g && g.rates;
+
+    // Blockleiste
+    const bar = $('mk-bar'), lbl = $('mk-bar-lbl');
+    bar.innerHTML = P.map((row, i) => {
+      const ph = String(row.phase).toLowerCase();
+      const cls = /race/.test(ph) ? 'race' : /deload/.test(ph) ? 'deload' : (curIdx >= 0 && row.block_name === cur.block_name) ? 'cur' : (i < curIdx) ? 'past' : 'fut';
+      return `<i class="${cls}" style="flex:1"></i>`;
+    }).join('') + (curIdx >= 0 ? `<s style="left:calc(${(curIdx + 0.5) / P.length * 100}% - 2px)"></s>` : '');
+    const groups = []; P.forEach(row => { const last = groups[groups.length - 1]; if (last && last.name === row.block_name) last.rows.push(row); else groups.push({ name: row.block_name, phase: row.phase, rows: [row] }); });
+    lbl.innerHTML = groups.filter(gp => !/deload/i.test(gp.phase)).map(gp => { const a = isoWeek(pd(gp.rows[0].start_date)), b = isoWeek(pd(gp.rows[gp.rows.length - 1].start_date)); const isRace = /race/i.test(gp.phase);
+      return `<span class="${isRace ? 'wk' : ''}">${esc(isRace ? 'WK' : gp.name.replace(/\s*\d+$/, '').slice(0, 12))}${isRace ? '' : ` · ${a}${b !== a ? '–' + b : ''}`}</span>`; }).join('');
+
+    $('mk-raer').textContent = cur ? cur.block_name : 'Makroplan';
+    chartMakro(P, curIdx);
+    requestAnimationFrame(() => fixedAxis(charts['c-makro'], 'mk-y-l', 'y', 'L<sub>aer</sub>', A_TICK(), v => Math.round(v).toLocaleString('de-DE')));
+    // Der Chart behält seine Desktop-Breite; auf dem Handy wandert nur der
+    // Ausschnitt – beim Öffnen auf die laufende Woche.
+    const sx = document.querySelector('#v-makro .scroll-x');
+    if (sx && curIdx >= 0) requestAnimationFrame(() => {
+      sx.scrollLeft = Math.max(0, (curIdx + 0.5) / P.length * sx.scrollWidth - sx.clientWidth / 2);
+    });
+
+    // Tabelle
+    const mech = (s && s.mech) || {}, load = (s && s.load) || {};
+    rows.innerHTML = P.map((row, i) => {
+      const kw = isoWeek(pd(row.start_date)); const ph = String(row.phase).toLowerCase(); const w = gw[row.start_date], f = gf[row.start_date];
+      const isCur = i === curIdx, isPast = row.end_date < ti, isDeload = /deload/.test(ph), isRace = /race/.test(ph);
+      const cls = isCur ? 'cur' : isRace ? 'race' : isDeload ? 'deload' : '';
+      let aer, mch, st = '';
+      if (isPast || isCur) {
+        const act = row.tss_actual != null ? Math.round(row.tss_actual) : (w ? Math.round(w.l_aer) : null);
+        aer = `${act != null ? act : '—'}<span>/${Math.round(row.tss_target)}</span>`;
+        if (w) { mch = `<span class="${w.over ? 'bad' : ''}">${Math.round(w.l_mech)}</span><span>/${Math.round(w.ceiling)}</span>`; }
+        else mch = '—';
+        const aerOk = act != null && act >= row.tss_target * 0.9 && act <= row.tss_target * 1.15;
+        st = isCur ? (w && w.over ? '⚠' : '') : (w && w.over) ? '⚠' : aerOk ? '✓' : (act != null ? '·' : '');
+      } else {
+        aer = `<span>${Math.round(row.tss_target)}</span>`;
+        mch = f ? `<span>${Math.round(f.mech_lo)}–${Math.round(f.mech_hi)}</span>` : '<span>—</span>';
+        st = isDeload ? '↓' : isRace ? '🏁' : '';
+      }
+      let html = `<tr class="${cls}"><td class="kw">${kw}</td><td>${esc(row.block_name)}${isCur ? ' · laufend' : isDeload ? ` −${Math.round((1 - row.tss_target / (P[i - 1] ? P[i - 1].tss_target : row.tss_target)) * 100)} %` : ''}</td><td class="num">${aer}</td><td class="num${w && w.over && (isPast || isCur) ? ' bad' : ''}">${mch}</td><td class="st">${st}</td></tr>`;
+      if (isCur) {
+        const open = load.tss_target ? load.tss_target - load.week_tss : null;
+        const hr = mech.headroom;
+        html += `<tr class="detail"><td colspan="5"><div class="open">
+          <div><div class="k">Aerob offen</div><div class="v">${open != null ? sgn(open) : '—'}<small>bis So</small></div></div>
+          <div class="${hr != null && hr < 0 ? 'red' : ''}"><div class="k">Mech-Decke</div><div class="v">${sgn(hr, 0)}<small>${hr != null && hr < 0 ? 'Gate 2 zu' : 'offen'}</small></div></div>
+        </div><div class="flags"><span>🌙 Schlafwoche ${r && r.sleep_week ? '✓' : '–'}</span><span>🏋️ Kraftwoche ${r && r.strength_week ? '✓' : '–'}</span><span>r<sub>mech</sub> ${r ? Math.round(r.r_mech * 100) + ' %' : '—'}</span></div></td></tr>`;
+      }
+      return html;
+    }).join('');
+  }
+
+  // ═════════════════════════ INTRA ═════════════════════════
+  function renderIntra() {
+    const m = D.metrics || {}, s = D.state, cal = D.cal;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const mon = monday(today);
+    const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+    $('in-eyebrow').textContent = `KW ${isoWeek(today)} · ${mon.getDate()}.${mon.getMonth() + 1}. – ${sun.getDate()}.${sun.getMonth() + 1}.`;
+    const load = (s && s.load) || {};
+    $('in-sum').textContent = de(load.week_tss);
+    $('in-target').textContent = load.tss_target ? `Ziel ${de(load.tss_target)}` : '';
+    const el = $('in-days');
+    if (!cal) { el.innerHTML = '<div class="empty">Keine Wochendaten.</div>'; }
+    else {
+      const byDate = {}; cal.days.forEach(d => { byDate[d.date] = d; });
+      const morningToday = (D.morning || []).find(x => x.date === iso(today));
+      el.innerHTML = [0, 1, 2, 3, 4, 5, 6].map(i => {
+        const d = new Date(mon); d.setDate(d.getDate() + i); const k = iso(d); const day = byDate[k]; const isToday = k === iso(today);
+        let content = '', right = '';
+        if (day) {
+          const acts = day.activities || [], plans = day.planned || [];
+          if (acts.length) content += acts.map(a => { const hit = findAct(k, a.name); return `<div class="n"${hit ? ` onclick="openDetail('${hit.id}','intra')"` : ''}>${a.icon || '🏃'} ${esc(a.name)}${hit ? ' ›' : ''}</div><div class="p">${a.distance_km ? de(a.distance_km, 1) + ' km · ' : ''}${Math.round(a.duration_s / 60)} min · L<sub>aer</sub> ${Math.round(a.tss)}${a.intention ? ' · ' + esc(a.intention) : ''}</div>`; }).join('');
+          if (plans.length) content += plans.map(p => `<div class="n plan">◌ ${esc(p.name)}</div><div class="p">geplant · ${Math.round(p.duration_s / 60)} min · L̂ ${Math.round(p.tss)}</div>`).join('');
+          if (!acts.length && !plans.length) content = `<div class="p">${d < today ? 'Ruhetag' : isToday ? 'noch nichts' : '—'}</div>`;
+          right = day.tss > 0 ? `<b>${Math.round(day.tss)}</b>L<sub>aer</sub>` : day.planned_tss > 0 ? `<b style="color:var(--accent)">${Math.round(day.planned_tss)}</b>geplant` : '';
+        } else content = '<div class="p">—</div>';
+        if (isToday && morningToday) content += `<div class="p">☀️ Readiness ${de(morningToday.readiness)}/5 · Schlaf ${de(morningToday.sleep_quality)}/5</div>`;
+        return `<div class="day${isToday ? ' today' : ''}"><div class="d"><b>${DOW[d.getDay()]}</b>${d.getDate()}. ${MON[d.getMonth()]}</div><div class="c">${content}</div><div class="t">${right}</div></div>`;
+      }).join('');
+    }
+    if (m.streak) $('in-streak').textContent = `🔥 ${m.streak} Wochen`;
+    const acts = (D.acts || []).slice(0, 8);
+    $('in-acts').innerHTML = acts.length ? acts.map(a => actRow(a, 'intra')).join('') : '<div class="empty">Keine Einheiten.</div>';
+  }
+
+  // ═════════════════════════ KALENDER ═════════════════════════
+  let calMonth = null, calSel = null;
+  function calShift(n) { calMonth.setMonth(calMonth.getMonth() + n); renderCalendar(); }
+  function calPick(k) { calSel = k; renderCalendar(); }
+  function renderCalendar() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (!calMonth) calMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    if (!calSel) calSel = iso(today);
+    const m = D.metrics || {}, dots = m.calendar_dots || {}, pdots = m.planned_dots || {};
+    const byDate = {}; if (D.cal) D.cal.days.forEach(d => { byDate[d.date] = d; });
+    // Wanderungen/Kraft etc. tragen im Backend keinen Kalenderpunkt → aus dem Trainingskalender ergänzen
+    Object.values(byDate).forEach(d => { if (!dots[d.date] && (d.activities || []).length) dots[d.date] = 'rest'; });
+    (D.planned || []).forEach(p => { const k = String(p.date).slice(0, 10); if (!pdots[k]) pdots[k] = 'plan'; });
+    $('ka-eyebrow').textContent = `${calMonth.getFullYear()}`;
+    $('ka-title').textContent = MONL[calMonth.getMonth()];
+    const first = new Date(calMonth); const start = monday(first);
+    let html = ['MO', 'DI', 'MI', 'DO', 'FR', 'SA', 'SO'].map(h => `<div class="h">${h}</div>`).join('');
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start); d.setDate(d.getDate() + i); const k = iso(d);
+      if (i >= 35 && d.getMonth() !== calMonth.getMonth()) break;
+      const other = d.getMonth() !== calMonth.getMonth();
+      const dot = dots[k] ? `<span class="dot ${dots[k]}"></span>` : pdots[k] ? '<span class="dot plan"></span>' : '<span class="dot" style="background:transparent"></span>';
+      html += `<div class="cd${other ? ' other' : ''}${k === iso(today) ? ' today' : ''}${k === calSel ? ' sel' : ''}" onclick="calPick('${k}')">${d.getDate()}${dot}</div>`;
+    }
+    $('ka-grid').innerHTML = html;
+    // Tagesdetail
+    const sd = pd(calSel); $('ka-day-title').textContent = `${DOW[sd.getDay()]}, ${sd.getDate()}. ${MONL[sd.getMonth()]}`;
+    const day = byDate[calSel]; const el = $('ka-day');
+    const plansSel = (D.planned || []).filter(p => String(p.date).slice(0, 10) === calSel);
+    if (day && ((day.activities || []).length || (day.planned || []).length)) {
+      el.innerHTML = (day.activities || []).map(a => { const hit = findAct(calSel, a.name); return `<div class="act"${hit ? ` onclick="openDetail('${hit.id}','kalender')"` : ''}><div class="act-icon">${a.icon || '🏃'}</div><div><h4>${esc(a.name)}</h4><p>${a.distance_km ? de(a.distance_km, 1) + ' km · ' : ''}${Math.round(a.duration_s / 60)} min${a.intention ? ' · ' + esc(a.intention) : ''}</p></div><div class="act-right"><b>${Math.round(a.tss)}</b>L<sub>aer</sub></div></div>`; }).join('')
+        + (day.planned || []).map(p => `<div class="act"><div class="act-icon">◌</div><div><h4>${esc(p.name)}</h4><p>geplant · ${Math.round(p.duration_s / 60)} min${p.intention ? ' · ' + esc(p.intention) : ''}</p></div><div class="act-right"><b style="color:var(--accent)">${Math.round(p.tss)}</b>L̂</div></div>`).join('');
+    } else if (plansSel.length) {
+      el.innerHTML = plansSel.map(p => `<div class="act"><div class="act-icon">◌</div><div><h4>${esc(p.name)}</h4><p>geplant${p.formula ? ' · ' + esc(p.formula) : ''}</p></div><div class="act-right"></div></div>`).join('');
+    } else el.innerHTML = `<div class="empty">${dots[calSel] ? 'Einheit vorhanden (Details nur für die letzten 8 Wochen).' : 'Nichts eingetragen.'}</div>`;
+    // Geplant 14 Tage
+    const end = new Date(today); end.setDate(end.getDate() + 14);
+    const rows = (D.planned || []).filter(p => { const d = pd(p.date); return !isNaN(d) && d >= today && d <= end; }).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    $('ka-plans').innerHTML = rows.length ? rows.map(p => { const d = pd(p.date); const desc = p.formula || (p.duration_s ? `${Math.round(Number(p.duration_s) / 60)} min · Z${p.zone || 2}` : '');
+      return `<div class="act"><div class="act-icon">${/ride|bike/i.test(p.type) ? '🚴' : '🏃'}</div><div><h4>${esc(p.name || 'Einheit')}</h4><p>${esc(desc)}${p.intention ? ' · ' + esc(p.intention) : ''}</p></div><div class="act-right"><b>${DOW[d.getDay()]}</b>${d.getDate()}. ${MON[d.getMonth()]}</div></div>`; }).join('')
+      : '<div class="empty">Nichts geplant.</div>';
+  }
+
+  // ═════════════════════════ EINHEIT · DETAIL ═════════════════════════
+  // Dieselben Bausteine wie die Desktop-Detailansicht (Stats, GPS-Route,
+  // Runden, Verlaufs-Charts HF/Pace/Höhe/Power/Kadenz, Notiz + KI) – nur
+  // untereinander gestapelt statt nebeneinander.
+  let _detailAct = null, _detailMap = null, _streamCharts = {}, _detailBack = 'intra';
+
+  function openDetail(id, from) {
+    const a = (D.acts || []).find(x => String(x.id) === String(id));
+    if (!a) return;
+    _detailAct = a;
+    _detailBack = from || _currentView();
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    $('v-detail').classList.add('active');
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    window.scrollTo(0, 0);
+    renderDetail(a);
+  }
+  function closeDetail() { location.hash = '#' + _detailBack; showView(_detailBack); }
+  function _currentView() { const v = document.querySelector('.view.active'); return v ? v.id.replace('v-', '') : 'intra'; }
+
+  function renderDetail(a) {
+    const isRide = !!(a.type && (a.type.includes('Ride') || a.type.includes('Cycling')));
+    const isStrength = !!a.is_strength;
+    const stats = [
+      { v: a.dist ? de(a.dist, 1) + ' km' : '—', l: 'Distanz', c: css('--accent') },
+      { v: a.duration || '—', l: 'Dauer', c: css('--text') },
+      isRide ? { v: a.avg_speed ? de(a.avg_speed, 1) + ' km/h' : '—', l: 'Ø Tempo', c: css('--text') }
+             : { v: a.pace || '—', l: 'Pace', c: css('--text') },
+      { v: a.hr ? a.hr + ' bpm' : '—', l: 'Ø HF', c: css('--yellow') },
+      { v: a.max_hr ? a.max_hr + ' bpm' : '—', l: 'Max HF', c: css('--red') },
+      { v: a.elevation ? '+' + a.elevation + ' m' : '—', l: 'Höhe', c: css('--green') },
+      { v: Math.round(a.l_aer ?? a.tss ?? 0), l: 'L<sub>aer</sub>', c: css('--accent') },
+      { v: (a.np_watts || a.avg_watts) ? (a.np_watts || a.avg_watts) + ' W' : ((a.l_mech || 0) > 0 ? de(a.l_mech, 1) : '—'), l: (a.np_watts || a.avg_watts) ? 'NP Watt' : 'L<sub>mech</sub>', c: css('--orange') },
+    ];
+    $('d-icon').textContent = a.icon || '🏃';
+    $('d-name').textContent = a.name || 'Einheit';
+    $('d-meta').textContent = `${a.date_fmt || a.date || ''} · ${a.type || ''}`;
+    $('d-stats').innerHTML = stats.map(x => `<div><b style="color:${x.c}">${x.v}</b><span>${x.l}</span></div>`).join('');
+
+    // Intention + Bewertung
+    const intent = (a.intention && a.intention !== 'nan') ? a.intention : '';
+    $('d-intention').value = intent;
+    const met = (a.intention_met || '').toLowerCase();
+    $('d-met').style.display = intent ? 'flex' : 'none';
+    $('d-met-yes').classList.toggle('on', met === 'yes');
+    $('d-met-no').classList.toggle('on', met === 'no');
+    // RPE nur bei Kraft/Bouldern (dort bestimmt sie die Last)
+    $('d-rpe-wrap').style.display = isStrength ? 'flex' : 'none';
+    if (isStrength) $('d-rpe').value = (a.rpe != null && a.rpe !== 'None') ? a.rpe : '';
+    // Notiz + KI
+    $('d-comment').value = (a.comment && a.comment !== 'nan') ? a.comment : '';
+    $('d-ai').innerHTML = a.ai_analysis ? a.ai_analysis
+      : '<div style="color:var(--muted);font-size:12px">Noch keine Analyse. Notiz schreiben und „Analysieren" tippen.</div>';
+
+    // Karte + Streams
+    initDetailMap(a.polyline);
+    loadDetailStreams(a.id, isRide);
+  }
+
+  function initDetailMap(encoded) {
+    const box = $('d-map');
+    if (_detailMap) { _detailMap.remove(); _detailMap = null; }
+    box.innerHTML = '';
+    if (!encoded || !window.L || typeof encoded !== 'string' || ['', 'nan', 'None'].includes(encoded.trim())) { box.style.display = 'none'; return; }
+    const coords = decodePoly(encoded);
+    if (coords.length < 2) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    _detailMap = L.map(box, { zoomControl: false, attributionControl: false });
+    // OpenStreetMap statt CARTO: dessen dark_all-Kacheln verlangen inzwischen
+    // einen API-Key und liefern sonst nur ein „API KEY REQUIRED"-Bild.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { subdomains: 'abc', maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(_detailMap);
+    box.classList.toggle('night', isDark());
+    L.polyline(coords, { color: '#fc4c02', weight: 3.5, opacity: .9 }).addTo(_detailMap);
+    _detailMap.fitBounds(L.polyline(coords).getBounds(), { padding: [14, 14] });
+    setTimeout(() => _detailMap && _detailMap.invalidateSize(), 120);
+  }
+  function decodePoly(enc) {
+    let idx = 0, lat = 0, lng = 0; const out = [];
+    while (idx < enc.length) {
+      let b, shift = 0, res = 0;
+      do { b = enc.charCodeAt(idx++) - 63; res |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lat += (res & 1) ? ~(res >> 1) : (res >> 1); shift = res = 0;
+      do { b = enc.charCodeAt(idx++) - 63; res |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lng += (res & 1) ? ~(res >> 1) : (res >> 1);
+      out.push([lat / 1e5, lng / 1e5]);
+    }
+    return out;
+  }
+
+  const fmtPaceS = s => { if (!s || s > 1200) return ''; const m = Math.floor(s / 60); return `${m}:${String(Math.round(s % 60)).padStart(2, '0')} /km`; };
+
+  async function loadDetailStreams(id, isRide) {
+    Object.values(_streamCharts).forEach(c => c && c.destroy()); _streamCharts = {};
+    $('d-streams').style.display = 'none';
+    $('d-laps').style.display = 'none';
+    $('d-stream-msg').style.display = 'block';
+    $('d-stream-msg').textContent = 'Verlauf wird geladen…';
+    let data;
+    try { data = await getJSON(`/api/activity_streams/${id}`); } catch (e) { data = { error: 'x' }; }
+    if (!data || data.error || (!data.heartrate?.length && !data.cadence?.length && !data.watts?.length)) {
+      $('d-stream-msg').textContent = 'Kein Verlauf verfügbar.'; return;
+    }
+    $('d-stream-msg').style.display = 'none';
+    $('d-streams').style.display = 'flex';
+
+    const times = data.time || [];
+    const labels = times.map(t => { const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+      return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`; });
+    const A = axes(), T = tip();
+    const cfg = (canvasId, values, color, fill, yLabel, unit, extra = {}) => {
+      const el = $(canvasId); if (!el || !values || !values.length) return null;
+      const wrap = el.closest('.stream-block'); if (wrap) wrap.style.display = 'block';
+      return new Chart(el, {
+        type: 'line',
+        data: { labels, datasets: [{ data: values, borderColor: color, backgroundColor: fill, fill: extra.fill !== undefined ? extra.fill : true,
+          tension: .25, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: color, spanGaps: true }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { display: false }, tooltip: { ...T, mode: 'index', intersect: false, titleColor: color,
+            titleFont: { size: 15, weight: '700' }, bodyFont: { size: 11 },
+            callbacks: { title: it => it[0] ? (unit === 'pace' ? `${yLabel}: ${fmtPaceS(it[0].parsed.y)}` : `${yLabel}: ${Math.round(it[0].parsed.y)}${unit}`) : '', label: it => it.label || '' } } },
+          scales: { y: Object.assign({ grid: { color: A.grid }, ticks: { color: A.tick, font: { size: 9 }, maxTicksLimit: 4 } }, extra.y || {}),
+                    x: { grid: { display: false }, ticks: { color: A.tick, font: { size: 9 }, maxTicksLimit: 6, autoSkip: true } } } },
+      });
+    };
+    document.querySelectorAll('.stream-block').forEach(b => { b.style.display = 'none'; });
+    _streamCharts.hr = cfg('d-c-hr', data.heartrate, '#f87171', 'rgba(248,113,113,0.10)', 'Herzfrequenz', ' bpm');
+    if (isRide) {
+      const speed = (data.pace || []).map(p => (p != null && p > 0) ? +(3600 / p).toFixed(1) : null);
+      _streamCharts.pace = cfg('d-c-pace', speed, '#fb923c', 'rgba(251,146,60,0.10)', 'Geschwindigkeit', ' km/h');
+      $('d-pace-title').textContent = '🚴 Geschwindigkeit (km/h)';
+    } else {
+      const sp = (data.pace || []).filter(v => v != null && v > 0 && v < 600);
+      let yMin, yMax;
+      if (sp.length) { const pMin = Math.min(...sp), pMax = Math.max(...sp), pad = Math.max(4, (pMax - pMin) * .08); yMin = Math.max(0, pMin - pad); yMax = pMax + pad; }
+      _streamCharts.pace = cfg('d-c-pace', data.pace, '#fb923c', 'rgba(251,146,60,0.10)', 'Pace', 'pace',
+        { fill: yMax != null ? { target: { value: yMax } } : true,
+          y: { reverse: true, min: yMin, max: yMax, ticks: { color: A.tick, font: { size: 9 }, maxTicksLimit: 4, callback: v => fmtPaceS(v) } } });
+      $('d-pace-title').textContent = '🏃 Pace (min/km)';
+    }
+    _streamCharts.alt = cfg('d-c-alt', data.altitude, '#34d399', 'rgba(52,211,153,0.10)', 'Höhe', ' m');
+    _streamCharts.pwr = cfg('d-c-pwr', (data.watts || []).some(v => v > 0) ? data.watts : null, '#facc15', 'rgba(250,204,21,0.10)', 'Power', ' W');
+    $('d-cad-title').textContent = isRide ? '👟 Kadenz (RPM)' : '👟 Kadenz (SPM)';
+    _streamCharts.cad = cfg('d-c-cad', data.cadence, '#c084fc', 'rgba(192,132,252,0.10)', 'Kadenz', isRide ? ' rpm' : ' spm');
+
+    // Runden
+    const laps = data.laps || [];
+    if (laps.length > 1) {
+      $('d-laps').style.display = 'block';
+      $('d-laps-count').textContent = laps.length;
+      $('d-laps-body').innerHTML = laps.map((l, i) => `<tr>
+        <td class="kw" style="font-size:14px">${i + 1}</td>
+        <td>${de((l.distance_m || 0) / 1000, 2)} km</td>
+        <td class="num">${l.avg_pace_s ? fmtPaceS(l.avg_pace_s) : '—'}</td>
+        <td class="num">${l.avg_hr || '—'}</td>
+        <td class="num">${l.avg_power_w || '—'}</td>
+      </tr>`).join('');
+    }
+  }
+  function toggleLaps() { const t = $('d-laps-table'); t.style.display = t.style.display === 'none' ? 'block' : 'none'; $('d-laps-caret').textContent = t.style.display === 'none' ? '▾' : '▴'; }
+
+  // ── Speichern ───────────────────────────────────────────────────────────
+  async function patchAct(id, body) {
+    try { await fetch(`/api/activities/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); } catch (e) {}
+    Object.assign(_detailAct, body);
+    const inList = (D.acts || []).find(x => String(x.id) === String(id));
+    if (inList) Object.assign(inList, body);
+  }
+  function saveIntention() { patchAct(_detailAct.id, { intention: $('d-intention').value.trim() }); $('d-met').style.display = $('d-intention').value.trim() ? 'flex' : 'none'; }
+  function setMet(v) {
+    const cur = (_detailAct.intention_met || '').toLowerCase();
+    const nv = cur === v ? '' : v;
+    patchAct(_detailAct.id, { intention_met: nv });
+    $('d-met-yes').classList.toggle('on', nv === 'yes'); $('d-met-no').classList.toggle('on', nv === 'no');
+  }
+  function saveRpe() { const v = $('d-rpe').value.trim(); patchAct(_detailAct.id, { rpe: v }); }
+  async function saveComment(alsoAnalyse) {
+    const btn = $('d-ai-btn');
+    await patchAct(_detailAct.id, { comment: $('d-comment').value });
+    if (!alsoAnalyse) { $('d-saved').style.display = 'inline'; setTimeout(() => { $('d-saved').style.display = 'none'; }, 2000); return; }
+    btn.disabled = true; btn.textContent = '✦ analysiere…';
+    try {
+      const r = await getJSON(`/api/activities/${_detailAct.id}/ai_analysis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      if (r && r.analysis) { _detailAct.ai_analysis = r.analysis; $('d-ai').innerHTML = r.analysis; }
+      else $('d-ai').innerHTML = `<div style="color:var(--red);font-size:12px">${esc((r && r.message) || 'Analyse nicht möglich.')}</div>`;
+    } catch (e) { $('d-ai').innerHTML = '<div style="color:var(--red);font-size:12px">Analyse fehlgeschlagen.</div>'; }
+    btn.disabled = false; btn.textContent = '✦ Notiz speichern & analysieren';
+  }
+
+  // ── Garmin-Sync ───────────────────────────────────────────────────────────
+  async function startSync() {
+    const b = $('btn-sync'); b.disabled = true; b.textContent = '⟳ läuft…';
+    try {
+      await getJSON('/api/garmin_sync', { method: 'POST' });
+      for (let i = 0; i < 120; i++) { await new Promise(r => setTimeout(r, 3000)); const st = await getJSON('/api/garmin_sync_status'); if (!st.running) { b.textContent = st.last_result === 'ok' ? '✓ Sync' : '⚠ Sync'; break; } }
+    } catch (e) { b.textContent = '⚠ Sync'; }
+    b.disabled = false; setTimeout(() => { b.textContent = '⟳ Garmin'; }, 4000); loadAll();
+  }
+
+
+  loadAll();
+</script>
+</body>
+</html>

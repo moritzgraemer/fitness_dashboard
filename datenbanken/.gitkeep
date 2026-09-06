@@ -1,0 +1,6 @@
+Dieses Verzeichnis bleibt im Repository absichtlich leer.
+
+Es ist der Mountpunkt für das Fly-Volume und enthält im Betrieb alle
+persönlichen Daten (Aktivitäten, Herzfrequenz, Schlaf, HRV, GPS-Routen,
+Verletzungen) sowie den Garmin-Token-Store. Nichts davon gehört in ein
+öffentliches Repository – siehe .gitignore und README.md.
