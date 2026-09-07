@@ -1,11 +1,15 @@
 # Fly.io-Konfiguration für das Fitness-Dashboard
-# App-Name vor dem ersten Deploy anpassen (muss weltweit eindeutig sein):
-#   fly apps create <name>   und hier eintragen.
-app = "DEIN-APP-NAME"   # vor dem ersten Deploy anpassen: fly apps create <name>
+#
+# Beim Start über die Weboberfläche ("Launch an App from GitHub") setzt Fly den
+# App-Namen selbst; der Wert hier ist nur ein Platzhalter. Beim Start über die
+# Kommandozeile vorher `fly apps create <name>` ausführen und hier eintragen.
+app = "fitness-dashboard"
 primary_region = "cdg"          # Paris – alternativ "fra" (Frankfurt)
 
 [build]
 
+# Nicht geheime Einstellungen. Zugangsdaten gehören NICHT hierher, sondern als
+# Secret (verschlüsselt) in die App – siehe README.md.
 [env]
   V2_HOST = "0.0.0.0"
   V2_PORT = "8080"
@@ -32,12 +36,19 @@ primary_region = "cdg"          # Paris – alternativ "fra" (Frankfurt)
     method = "GET"
     path = "/healthz"
 
-# Persistente Daten (alle CSVs, Stream-Cache, Garmin-Token-Store).
-# Einmalig anlegen:  fly volumes create fitness_data --size 1 --region cdg
+# Die "Datenbank" dieser App sind CSV-Dateien in diesem Verzeichnis: Aktivitäten,
+# Körperdaten, Runden, Check-ins, Verletzungen, Makroplan und der Garmin-Token.
+# Sie liegen auf einem persistenten Volume, damit sie ein Deploy überleben.
+# Eine SQL-Datenbank (Postgres) wird NICHT gebraucht.
+#
+# Volume einmalig anlegen – gleiche Region wie primary_region:
+#   fly volumes create fitness_data --size 1 --region cdg --app <name>
 [mounts]
   source = "fitness_data"
   destination = "/app/datenbanken"
 
+# pandas und numpy brauchen Arbeitsspeicher: 256 MB reichen nicht, die Maschine
+# würde beim Laden der Daten abstürzen. 1 GB ist der praktikable Wert.
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "1gb"                # pandas + 80 MB CSV-Daten; 512 MB ist knapp
+  memory = "1gb"

@@ -18,6 +18,7 @@ neu (Stream-Format v3).
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -32,8 +33,24 @@ ap.add_argument('--since', default='2026-01-01')
 ap.add_argument('--max', type=int, default=None)
 args = ap.parse_args()
 
-with open(BASE_DIR.parent / 'config.json', encoding='utf-8') as f:
-    cfg = json.load(f).get('garmin', {})
+def _garmin_cfg() -> dict:
+    """Erst das Server-Secret APP_CONFIG_JSON, dann config.json (wie app.py)."""
+    raw = os.environ.get('APP_CONFIG_JSON', '').strip()
+    if raw:
+        try:
+            return json.loads(raw).get('garmin', {})
+        except json.JSONDecodeError:
+            pass
+    try:
+        with open(BASE_DIR.parent / 'config.json', encoding='utf-8') as f:
+            return json.load(f).get('garmin', {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+cfg = _garmin_cfg()
+if not cfg.get('username'):
+    raise SystemExit('⚠  Keine Garmin-Zugangsdaten (APP_CONFIG_JSON oder config.json).')
 tokenstore = str(BASE_DIR.parent / 'datenbanken' / '.garmin_tokens')
 api = Garmin(cfg.get('username', ''), cfg.get('password', ''))
 try:

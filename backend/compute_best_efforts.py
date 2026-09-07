@@ -21,6 +21,7 @@ wird die Aktivität übersprungen statt zu crashen – die Strava-API ist deakti
 """
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -75,8 +76,24 @@ RATE_LIMIT_SLEEP_S = 1.0   # Schonpause zwischen Garmin-Detail-Requests
 # GARMIN AUTH + STREAMS
 # ---------------------------------------------------
 
-with open(CONFIG_PATH, encoding="utf-8") as f:
-    _garmin_cfg = json.load(f).get("garmin", {})
+def _load_garmin_cfg() -> dict:
+    """Wie app.py: erst das Server-Secret APP_CONFIG_JSON, dann config.json.
+    So braucht dieses Skript auf einem Server keine Datei mit dem Passwort."""
+    raw = os.environ.get("APP_CONFIG_JSON", "").strip()
+    if raw:
+        try:
+            return json.loads(raw).get("garmin", {})
+        except json.JSONDecodeError:
+            pass
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            return json.load(f).get("garmin", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+_garmin_cfg = _load_garmin_cfg()
+GARMIN_TOKENSTORE = str(DB_DIR / ".garmin_tokens")
 
 _garmin_client = None
 
@@ -84,8 +101,12 @@ _garmin_client = None
 def _client():
     global _garmin_client
     if _garmin_client is None:
+        if not _garmin_cfg.get("username"):
+            raise SystemExit("⚠  Keine Garmin-Zugangsdaten (APP_CONFIG_JSON oder config.json).")
         _garmin_client = Garmin(_garmin_cfg.get("username", ""), _garmin_cfg.get("password", ""))
-        _garmin_client.login()
+        # Gemeinsamer Token-Store: eine gespeicherte Sitzung statt jedes Mal
+        # Passwort-Login – sonst antwortet Garmin mit 429 (IP rate limited).
+        _garmin_client.login(GARMIN_TOKENSTORE)
     return _garmin_client
 
 

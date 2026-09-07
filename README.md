@@ -36,6 +36,25 @@ Umgebungsvariable in den Container. `app.py` und `backend/sync_garmin_csv.py`
 lesen `APP_CONFIG_JSON` direkt aus der Umgebung; eine `config.json` auf der
 Platte gibt es nur beim lokalen Entwickeln, und die steht in `.gitignore`.
 
+## Wo liegen die Daten?
+
+Diese App braucht **keine SQL-Datenbank**. Alle Daten sind CSV-Dateien im
+Verzeichnis `datenbanken/`, das auf Fly.io als persistentes Volume eingebunden
+ist. „Managed Postgres" beim Start also nicht ankreuzen.
+
+| Datei | Inhalt |
+|---|---|
+| `activities.csv` | alle Einheiten mit Last, Puls, Leistung, GPS-Route |
+| `GarminConnectData_Aktivities.csv` | Rohdaten der Aktivitäten aus Garmin |
+| `GarminConnectData_Koerperdaten.csv` | Schlaf, HRV, Ruhepuls, Body Battery |
+| `GarminConnectData_Laps.csv` | Runden je Aktivität |
+| `morning_checkins.csv`, `injuries.csv`, `makroplan.csv`, `goals.csv`, `prs.csv` | Check-ins, Verletzungen, Trainingsplan, Ziele, Bestzeiten |
+| `streams/` | zwischengespeicherte Sekundendaten je Einheit |
+| `.garmin_tokens/` | Garmin-Sitzung, damit der Sync ohne Passwort auskommt |
+
+Ohne Volume wären diese Dateien nach jedem Deploy weg. Das Volume muss in
+derselben Region liegen wie die App.
+
 ## Einrichtung auf Fly.io
 
 Voraussetzung: [flyctl](https://fly.io/docs/flyctl/install/) installiert und
@@ -53,7 +72,13 @@ fly apps create mein-fitness-dashboard
 fly volumes create fitness_data --size 1 --region cdg --app mein-fitness-dashboard
 ```
 
-**3. Secrets setzen.** Das Passwort für das Dashboard:
+**3. Secrets setzen.** Wichtig: Das Passwort und die Garmin-Zugangsdaten
+gehören als **Secret** in die App, nicht in die „Environment Variables" des
+Start-Dialogs. Environment Variables landen im Klartext in der Konfiguration,
+Secrets speichert Fly verschlüsselt und reicht sie nur zur Laufzeit weiter.
+Über die Weboberfläche: App öffnen, links „Secrets", dann anlegen.
+
+Über die Kommandozeile – das Passwort für das Dashboard:
 
 ```bash
 fly secrets set DASH_PASSWORD='ein-langes-passwort' --app mein-fitness-dashboard
